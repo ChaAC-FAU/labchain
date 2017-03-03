@@ -1,6 +1,7 @@
-from crypto import get_hasher
 import json
 from treelib import Node, Tree
+
+from .crypto import get_hasher
 
 class MerkleNode:
     """ A hash tree node, pointing to a leaf value or another node. """

@@ -1,4 +1,4 @@
-from crypto import MAX_HASH
+from .crypto import MAX_HASH
 
 def verify_proof_of_work(block):
     """ Verify the proof of work on a block. """
@@ -12,7 +12,7 @@ class ProofOfWork:
         self.block = block
         self.success = False
 
-    def abort(self)
+    def abort(self):
         self.stopped = True
 
     def run(self):
@@ -23,9 +23,9 @@ class ProofOfWork:
         while not self.stopped:
             for _ in range(1000):
                 h = hasher.copy()
-                h.update(self.block.nonce)
+                h.update(str(self.block.nonce).encode())
                 self.block.hash = h.digest()
                 if verify_proof_of_work(self.block):
-                    return True
+                    return self.block
                 self.block.nonce += 1
-        return False
+        return None

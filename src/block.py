@@ -1,7 +1,9 @@
-from merkle import merkle_tree
-from crypto import get_hasher
-from proof_of_work import verify_proof_of_work, GENESIS_DIFFICULTY
 from datetime import datetime
+from binascii import hexlify
+
+from .merkle import merkle_tree
+from .crypto import get_hasher
+from .proof_of_work import verify_proof_of_work, GENESIS_DIFFICULTY
 
 class Block:
     """ A block. """
@@ -17,6 +19,17 @@ class Block:
         self.difficulty = difficulty
         self.transactions = transactions
 
+    def __str__(self):
+        return """Block {}
+    Previous Block: {}
+    Merkle Hash: {}
+    Time: {}
+    Nonce: {:x}
+    Height: {}
+    Received Time: {}
+    Difficulty: {:x}""".format(hexlify(self.hash), hexlify(self.prev_block_hash), hexlify(self.merkle_root_hash), self.time, self.nonce, self.height, self.received_time, self.difficulty)
+
+
     def verify_merkle(self):
         """ Verify that the merkle root hash is correct for the transactions in this block. """
         return merkle_tree(self.transactions).get_hash() == self.merkle_root_hash
@@ -25,14 +38,14 @@ class Block:
         hasher = get_hasher()
         hasher.update(self.prev_block_hash)
         hasher.update(self.merkle_root_hash)
-        hasher.update(self.time)
-        hasher.update(self.difficulty)
+        hasher.update(str(self.time.timestamp()).encode())
+        hasher.update(str(self.difficulty).encode())
         return hasher
 
     def get_hash(self):
         """ Compute the hash of the header data. This is not necessarily the received hash value for this block! """
         hasher = self.get_partial_hash()
-        hasher.update(self.nonce) # for mining we want to get a copy of hasher here
+        hasher.update(str(self.nonce).encode()) # for mining we want to get a copy of hasher here
         return hasher.digest()
 
     def verify_difficulty(self):
@@ -47,9 +60,19 @@ class Block:
         return chain.get_block_by_hash(chain) is not None
 
     def verify_transactions(self, chain):
-        """ Verify all transaction are valid in the given block chain. """
+        """ Verify all transaction in this block are valid in the given block chain. """
+        mining_reward = None
+        # TODO: mining fees and variable block rewards
         for t in self.transactions:
+            if not t.inputs:
+                if mining_reward is not None:
+                    return False
+                mining_reward = t
+
             if not t.verify(chain):
+                return False
+        if mining_reward is not None:
+            if sum(map(lambda t: t.amount, mining_reward.targets)) > chain.compute_blockreward(chain.get_block_by_hash(self.prev_block_hash)):
                 return False
         return True
 
