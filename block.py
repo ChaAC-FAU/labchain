@@ -1,7 +1,7 @@
 from merkle import merkle_tree
 from crypto import get_hasher
-
-GENESIS_BLOCK_HASH = b"" # TODO
+from proof_of_work import verify_proof_of_work, GENESIS_DIFFICULTY
+from datetime import datetime
 
 class Block:
     """ A block. """
@@ -21,13 +21,17 @@ class Block:
         """ Verify that the merkle root hash is correct for the transactions in this block. """
         return merkle_tree(self.transactions).get_hash() == self.merkle_root_hash
 
-    def get_hash(self):
-        """ Compute the hash of the header data. This is not necessarily the received hash value for this block! """
+    def get_partial_hash(self):
         hasher = get_hasher()
         hasher.update(self.prev_block_hash)
         hasher.update(self.merkle_root_hash)
         hasher.update(self.time)
         hasher.update(self.difficulty)
+        return hasher
+
+    def get_hash(self):
+        """ Compute the hash of the header data. This is not necessarily the received hash value for this block! """
+        hasher = self.get_partial_hash()
         hasher.update(self.nonce) # for mining we want to get a copy of hasher here
         return hasher.digest()
 
@@ -36,7 +40,7 @@ class Block:
         # TODO: move this some better place
         if self.hash != self.get_hash():
             return False
-        return int.from_bytes(self.hash, byteorder='little', signed=False) > self.difficulty
+        return verify_proof_of_work(self)
 
     def verify_prev_block(self, chain):
         """ Verify the previous block pointer points to a valid block in the given block chain. """
@@ -54,3 +58,8 @@ class Block:
         if self.height == 0:
             return self.hash == GENESIS_BLOCK_HASH
         return self.verify_difficulty() and self.verify_merkle() and self.verify_prev_block(chain) and self.verify_transactions(chain)
+
+GENESIS_BLOCK = Block(b"", b"None", datetime(2017, 3, 3, 10, 35, 26, 922898),
+                      0, 0, datetime.now(), GENESIS_DIFFICULTY, merkle_tree([]).get_hash(), [])
+GENESIS_BLOCK_HASH = GENESIS_BLOCK.get_hash()
+GENESIS_BLOCK.hash = GENESIS_BLOCK_HASH

@@ -1,12 +1,15 @@
 from collections import namedtuple
 from crypto import get_hasher, sign, verify_sign
 
+""" The recipient of a transaction ('coin'). """
 TransactionTarget = namedtuple("TransactionTarget", ["recipient_pk", "amount"])
+""" One transaction input (pointer to 'coin'). """
 TransactionInput = namedtuple("TransactionInput", ["transaction_hash", "output_idx"])
 
 
 
 class Transaction:
+
     def __init__(self, inputs, targets, signatures=None):
         self.inputs = inputs
         self.targets = targets
@@ -43,13 +46,13 @@ class Transaction:
         return verify_sign(self.get_hash(), sig)
 
 
-    def _verify_single_spend(self, chain):
+    def _verify_single_spend(self, chain, prev_block):
         """ Verifies that all inputs have not been spent yet. """
         for i in self.inputs:
-            if not chain.is_coin_still_valid(i.transaction_hash, i.output_idx):
+            if not chain.is_coin_still_valid(i, prev_block):
                 return False
         return True
 
-    def verify(self, chain):
+    def verify(self, chain, prev_block=None):
         """ Verifies that this transaction is completely valid. """
-        return self._verify_single_spend(chain) and self._verify_signatures(chain)
+        return self._verify_single_spend(chain, prev_block) and self._verify_signatures(chain)
