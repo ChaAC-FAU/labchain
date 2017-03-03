@@ -1,11 +1,11 @@
 
 class Blockchain:
-    def __init__(self, blocks):
+    def __init__(self, blocks: list):
         self.blocks = blocks
         assert self.blocks[0].height == 0
         self.block_indices = {block.hash: i for (i, block) in enumerate(blocks)}
 
-    def get_transaction_by_hash(self, hash_val):
+    def get_transaction_by_hash(self, hash_val: bytes):
         """
         Returns a transaction from its hash, or None.
         """

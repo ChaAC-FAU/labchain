@@ -1,5 +1,6 @@
 from datetime import datetime
-from binascii import hexlify
+from binascii import hexlify, unhexlify
+import json
 
 from .merkle import merkle_tree
 from .crypto import get_hasher
@@ -18,17 +19,35 @@ class Block:
         self.received_time = received_time
         self.difficulty = difficulty
         self.transactions = transactions
+        assert transactions is not None
+        # TODO: fix param order, make transactions non-optional
+
+    def to_json_compatible(self):
+        val = {}
+        val['hash'] = hexlify(self.hash).encode()
+        val['prev_block_hash'] = hexlify(self.prev_block_hash).encode()
+        val['merkle_root_hash'] = hexlify(self.merkle_root_hash).encode()
+        val['time'] = self.time.timestamp()
+        val['nonce'] = self.nonce
+        val['height'] = self.height
+        val['difficulty'] = self.difficulty
+        val['transactions'] = [t.to_json_compatible() for t in self.transactions]
+        return val
+
+    @classmethod
+    def from_json_compatible(cls):
+        return cls(unhexlify(val['hash']),
+                   unhexlify(val['prev_block_hash']),
+                   datetime.fromtimestamp(int(val['time'])),
+                   int(val['nonce']),
+                   int(val['height']),
+                   datetime.now()
+                   int(val['difficulty']),
+                   unhexlify(val['merkle_root_hash']),
+                   [Transaction.from_json_compatible(t) for t in list(val['transactions'])])
 
     def __str__(self):
-        return """Block {}
-    Previous Block: {}
-    Merkle Hash: {}
-    Time: {}
-    Nonce: {:x}
-    Height: {}
-    Received Time: {}
-    Difficulty: {:x}""".format(hexlify(self.hash), hexlify(self.prev_block_hash), hexlify(self.merkle_root_hash), self.time, self.nonce, self.height, self.received_time, self.difficulty)
-
+        return json.dumps(self.to_json_compatible(), indent=4)
 
     def verify_merkle(self):
         """ Verify that the merkle root hash is correct for the transactions in this block. """
