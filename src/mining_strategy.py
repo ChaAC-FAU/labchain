@@ -6,6 +6,8 @@ from .transaction import Transaction, TransactionTarget
 
 from Crypto.PublicKey import RSA
 
+__all__ = ['create_block']
+
 def create_block(blockchain, unconfirmed_transactions, reward_pubkey):
     """
     Creates a new block that can be mined.

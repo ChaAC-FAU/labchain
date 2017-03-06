@@ -1,12 +1,17 @@
 from collections import namedtuple
 from binascii import hexlify, unhexlify
+from .blockchain import Blockchain
+from .block import Block
 
 from .crypto import get_hasher, Signing
 
-""" The recipient of a transaction ('coin'). """
+__all__ = ['TransactionTarget', 'TransactionInput', 'Transaction']
+
 TransactionTarget = namedtuple("TransactionTarget", ["recipient_pk", "amount"])
-""" One transaction input (pointer to 'coin'). """
+""" The recipient of a transaction ('coin'). """
+
 TransactionInput = namedtuple("TransactionInput", ["transaction_hash", "output_idx"])
+""" One transaction input (pointer to 'coin'). """
 
 from typing import List
 SigningListType = List[Signing]
@@ -14,7 +19,7 @@ SigningListType = List[Signing]
 
 class Transaction:
 
-    def __init__(self, inputs: list, targets: list, signatures=None: list, iv=None: bytes):
+    def __init__(self, inputs: list, targets: list, signatures:list=None, iv:bytes=None):
         self.inputs = inputs
         self.targets = targets
         self.signatures = signatures or []
@@ -108,6 +113,6 @@ class Transaction:
                 return False
         return True
 
-    def verify(self, chain: Blockchain, prev_block=None: Block):
+    def verify(self, chain: Blockchain, prev_block:Block=None):
         """ Verifies that this transaction is completely valid. """
         return self._verify_single_spend(chain, prev_block) and self._verify_signatures(chain)

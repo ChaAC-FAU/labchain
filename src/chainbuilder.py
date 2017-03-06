@@ -1,6 +1,8 @@
 from .block import GENESIS_BLOCK, GENESIS_BLOCK_HASH
 from .blockchain import Blockchain
 
+__all__ = ['ChainBuilder']
+
 class ChainBuilder:
     """
     Maintains the current longest confirmed (primary) block chain as well as one candidate for an even longer

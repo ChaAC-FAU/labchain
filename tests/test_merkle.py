@@ -1,4 +1,4 @@
-from merkle import merkle_tree
+from src.merkle import merkle_tree
 
 class Val:
     def __init__(self, hash_val):

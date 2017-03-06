@@ -1,5 +1,7 @@
 from .crypto import MAX_HASH
 
+__all__ = ['verify_proof_of_work', 'GENESIS_DIFFICULTY', 'ProofOfWork']
+
 def verify_proof_of_work(block):
     """ Verify the proof of work on a block. """
     return int.from_bytes(block.hash, byteorder='little', signed=False) > block.difficulty

@@ -1,10 +1,12 @@
-from src.mining import Miner
 import json
 from enum import Enum
 import socket
+import socketserver
 from threading import Thread
 import logging
 from queue import Queue
+
+__all__ = ['Protocol']
 
 MAX_PEERS = 10
 HELLO_MSG = b"bl0ckch41n"
@@ -29,20 +31,23 @@ class PeerConnection:
         if self.socket.recv(len(HELLO_MSG)) != HELLO_MSG:
             return
         self.is_connected = True
-        Thread.start(target=self.close_on_error, args=(self.reader_thread,))
-        self.close_on_error(self.writer_thread)
+        Thread.start(target=self.reader_thread)
+        self.writer_thread()
 
-    def close_on_error(self, cmd):
-        try:
-            cmd()
-        except Exception:
-            logging.exception()
-        while not self.outgoing_msgs.empty():
-            self.outgoing_msgs.get_nowait()
-        self.outgoing_msgs.put(None)
-        self.is_connected = False
-        self.socket.close()
+    def close_on_error(fn):
+        def wrapper(self, *args, **kwargs):
+            try:
+                fn(self, *args, **kwargs)
+            except Exception:
+                logging.exception()
+            while not self.outgoing_msgs.empty():
+                self.outgoing_msgs.get_nowait()
+            self.outgoing_msgs.put(None)
+            self.is_connected = False
+            self.socket.close()
+        return wrapper
 
+    @close_on_error
     def writer_thread(self):
         while True:
             item = self.outgoing_msgs.get()
@@ -52,6 +57,7 @@ class PeerConnection:
             self.socket.sendall(item)
             self.outgoing_msgs.task_done()
 
+    @close_on_error
     def reader_thread(self):
         while True:
             buf = b""

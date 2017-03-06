@@ -1,3 +1,4 @@
+__all__ = ['Blockchain']
 
 class Blockchain:
     def __init__(self, blocks: list):

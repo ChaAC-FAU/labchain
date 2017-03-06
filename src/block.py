@@ -6,6 +6,8 @@ from .merkle import merkle_tree
 from .crypto import get_hasher
 from .proof_of_work import verify_proof_of_work, GENESIS_DIFFICULTY
 
+__all__ = ['Block', 'GENESIS_BLOCK', 'GENESIS_BLOCK_HASH']
+
 class Block:
     """ A block. """
 
@@ -38,10 +40,10 @@ class Block:
     def from_json_compatible(cls):
         return cls(unhexlify(val['hash']),
                    unhexlify(val['prev_block_hash']),
-                   datetime.fromtimestamp(int(val['time'])),
+                   datetime.fromtimestamp(float(val['time'])),
                    int(val['nonce']),
                    int(val['height']),
-                   datetime.now()
+                   datetime.now(),
                    int(val['difficulty']),
                    unhexlify(val['merkle_root_hash']),
                    [Transaction.from_json_compatible(t) for t in list(val['transactions'])])

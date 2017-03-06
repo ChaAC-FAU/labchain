@@ -6,6 +6,8 @@ from .protocol import Protocol
 from threading import Thread
 from time import sleep
 
+__all__ = ['Miner']
+
 class Miner:
     def __init__(self, proto, reward_pubkey):
         self.proto = proto

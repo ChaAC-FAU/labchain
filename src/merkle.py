@@ -1,7 +1,11 @@
 import json
+from binascii import hexlify
 from treelib import Node, Tree
+from itertools import zip_longest
 
 from .crypto import get_hasher
+
+__all__ = ['merkle_tree', 'MerkleNode']
 
 class MerkleNode:
     """ A hash tree node, pointing to a leaf value or another node. """
@@ -21,7 +25,7 @@ class MerkleNode:
 
     def _get_tree(self, tree, parent):
         """ Recursively build a treelib tree for nice pretty printing. """
-        tree.create_node(self.get_hash()[:10], self, parent)
+        tree.create_node(hexlify(self.get_hash())[:36].decode() + "...", self, parent)
         if isinstance(self.v1, MerkleNode):
             self.v1._get_tree(tree, self)
         elif self.v1 is not None:
@@ -48,11 +52,8 @@ def merkle_tree(values):
 
     while len(values) > 1:
         nodes = []
-        for (v1, v2) in zip(values[0::2], values[1::2]):
+        for (v1, v2) in zip_longest(values[0::2], values[1::2]):
             nodes.append(MerkleNode(v1, v2))
-
-        if len(values) % 2:
-            nodes.append(MerkleNode(values[-1], None))
 
         values = nodes
 
