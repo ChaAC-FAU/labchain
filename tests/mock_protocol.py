@@ -13,5 +13,5 @@ class MockProtocol:
         for handler in self.trans_receive_handlers:
             handler(trans)
 
-    def broadcast_mined_block(self, block):
+    def broadcast_primary_block(self, block):
         self.fake_block_received(block)

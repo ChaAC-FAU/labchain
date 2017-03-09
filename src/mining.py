@@ -27,7 +27,7 @@ class Miner:
                 block = miner.run()
                 self.cur_miner = None
                 if block is not None:
-                    self.proto.broadcast_mined_block(block)
+                    self.proto.broadcast_primary_block(block)
 
     def start_mining(self, block):
         """ Start mining on a new block. """

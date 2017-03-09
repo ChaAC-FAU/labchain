@@ -20,6 +20,11 @@ class ChainBuilder:
 
         protocol.block_receive_handlers.append(self.new_block_received)
         protocol.trans_receive_handlers.append(self.new_transaction_received)
+        protocol.block_request_handlers.append(self.block_request_received)
+        self.protocol = protocol
+
+    def block_request_received(self, block_hash):
+        return self.block_cache.get(block_hash)
 
     def new_transaction_received(self, transaction):
         """ Event handler that is called by the network layer when a transaction is received. """
@@ -55,8 +60,7 @@ class ChainBuilder:
                 self._new_primary_block_chain(chain)
             self.unconfirmed_block_chain = []
         else:
-            # TODO: download next block
-            pass
+            self.protocol.send_block_request(unc[-1].prev_block_hash)
 
     def new_block_received(self, block):
         """ Event handler that is called by the network layer when a block is received. """
