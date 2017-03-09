@@ -47,5 +47,6 @@ class Miner:
         primary chain changes.
         """
         chain = self.chainbuilder.primary_block_chain
-        block = mining_strategy.create_block(chain, self.chainbuilder.unconfirmed_transactions.values(), self.reward_pubkey)
+        transactions = [t for t in self.chainbuilder.unconfirmed_transactions if t.verify(chain)]
+        block = mining_strategy.create_block(chain, transactions, self.reward_pubkey)
         self.start_mining(block)

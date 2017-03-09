@@ -102,12 +102,16 @@ class Transaction:
     def _verify_single_sig(self, sig: str, inp: TransactionInput, chain: Blockchain):
         """ Verifies the signature on a single input. """
         trans = chain.get_transaction_by_hash(inp.transaction_hash)
+        if trans is None:
+            return False
         sender_pk = trans.targets[inp.output_idx].recipient_pk
         return sender_pk.verify_sign(self.get_hash(), sig)
 
 
     def _verify_single_spend(self, chain: Blockchain, prev_block: Block):
         """ Verifies that all inputs have not been spent yet. """
+        if len(self.inputs) != len(set(self.inputs)):
+            return False
         for i in self.inputs:
             if not chain.is_coin_still_valid(i, prev_block):
                 return False

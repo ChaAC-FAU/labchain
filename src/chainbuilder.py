@@ -15,6 +15,8 @@ class ChainBuilder:
 
         self.block_cache = { GENESIS_BLOCK_HASH: GENESIS_BLOCK }
         self.unconfirmed_transactions = {}
+        # TODO: we want this to be sorted by some function of rewards and age
+        # TODO: we want two lists, one with known valid, unapplied transactions, the other with all known transactions (with some limit)
 
         self.chain_change_handlers = []
 
@@ -37,9 +39,12 @@ class ChainBuilder:
         Does all the housekeeping that needs to be done when a new longest chain is found.
         """
         self.primary_block_chain = chain
+        keys = set()
         for (hash_val, trans) in self.unconfirmed_transactions.items():
             if not trans.verify(chain):
-                del self.unconfirmed_transactions[hash_val]
+                keys.add(hash_val)
+        for hash_val in keys:
+            del self.unconfirmed_transactions[hash_val]
 
         for handler in self.chain_change_handlers:
             handler()
