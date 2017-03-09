@@ -15,6 +15,8 @@ __all__ = ['Protocol', 'PeerConnection']
 MAX_PEERS = 10
 HELLO_MSG = b"bl0ckch41n"
 
+logging.basicConfig(level=logging.INFO)
+
 socket.setdefaulttimeout(30)
 
 class PeerConnection:
@@ -103,6 +105,7 @@ class PeerConnection:
             item = self.outgoing_msgs.get()
             if item is None:
                 break
+            logging.debug("sending %s", item['msg_type'])
             #print(repr(item))
             data = json.dumps(item, 4).encode()
             self.socket.sendall(str(len(data)).encode() + b"\n")
@@ -114,23 +117,25 @@ class PeerConnection:
         """ The reader thread reads messages from the socket and passes them to the protocol to handle. """
         while True:
             buf = b""
-            while not buf or buf[-1] != '\n':
+            while not buf or buf[-1] != ord('\n'):
                 tmp = self.socket.recv(1)
                 if not tmp:
                     return
                 buf += tmp
             length = int(buf)
+            logging.debug("expecting json obj of length %d", length)
             buf = bytearray(length)
             read = 0
             while length > read:
-                tmp = self.socket.recv_into(buf[read:])
+                tmp = self.socket.recv_into(memoryview(buf)[read:])
                 if not tmp:
                     return
                 read += tmp
 
             obj = json.loads(buf.decode())
             msg_type = obj['msg_type']
-            msg_param = obj['msg_params']
+            msg_param = obj['msg_param']
+            logging.debug("received %s", obj['msg_type'])
 
             if msg_type == 'myport':
                 self.peer_addr = (self._sock_addr,) + (int(msg_param),) + self._sock_addr[2:]

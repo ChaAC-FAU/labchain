@@ -29,4 +29,6 @@ miner2.chainbuilder.new_transaction_received(trans)
 sleep(5)
 print(len(miner1.chainbuilder.primary_block_chain.blocks))
 print(len(miner2.chainbuilder.primary_block_chain.blocks))
-print(miner1.chainbuilder.primary_block_chain.blocks[1].hash == miner2.chainbuilder.primary_block_chain.blocks[1].hash)
+hashes1 = [b.hash for b in miner1.chainbuilder.primary_block_chain.blocks[:70]]
+hashes2 = [b.hash for b in miner2.chainbuilder.primary_block_chain.blocks[:70]]
+print(hashes1 == hashes2)

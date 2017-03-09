@@ -6,7 +6,7 @@ def verify_proof_of_work(block):
     """ Verify the proof of work on a block. """
     return int.from_bytes(block.hash, byteorder='little', signed=False) > block.difficulty
 
-GENESIS_DIFFICULTY = MAX_HASH - (MAX_HASH // 1000)
+GENESIS_DIFFICULTY = MAX_HASH - (MAX_HASH // 10000)
 
 class ProofOfWork:
     def __init__(self, block):
