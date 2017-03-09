@@ -22,7 +22,7 @@ class Miner:
         while True:
             miner = self.cur_miner
             if miner is None:
-                sleep(1)
+                sleep(0)
             else:
                 block = miner.run()
                 self.cur_miner = None
