@@ -34,37 +34,37 @@ class Transaction:
         val['inputs'] = []
         for inp in self.inputs:
             val['inputs'].append({
-                'recipient_pk': hexlify(inp.recipient_pk.to_bytes()).decode(),
-                'amount': inp.amount,
+                'transaction_hash': hexlify(inp.transaction_hash).decode(),
+                'output_idx': inp.output_idx,
             })
         val['targets'] = []
         for targ in self.targets:
             val['targets'].append({
-                'transaction_hash': hexlify(targ.transaction_hash).decode(),
-                'output_idx': targ.output_idx,
+                'recipient_pk': hexlify(targ.recipient_pk.as_bytes()).decode(),
+                'amount': targ.amount,
             })
         val['signatures'] = []
         for sig in self.signatures:
-            val['signatures'].append(sig)
-        val['iv'] = hexlify(self.iv)
+            val['signatures'].append(hexlify(sig).decode())
+        if self.iv is not None:
+            val['iv'] = hexlify(self.iv).decode()
         return val
 
     @classmethod
     def from_json_compatible(cls, obj: dict):
         inputs = []
         for inp in obj['inputs']:
-            inputs.append(TransactionInput(Signing(unhexlify(inp['recipient_pk'])),
-                                           int(inp['amount'])))
+            inputs.append(TransactionInput(unhexlify(inp['transaction_hash']),
+                                           int(inp['output_idx'])))
         targets = []
         for targ in obj['targets']:
-            targets.append(TransactionTarget(unhexlify(inp['transaction_hash']),
-                                           int(inp['output_idx'])))
-        signatures = obj['signatures']
-        for sig in signatures:
-            if not isinstance(sig, str):
-                raise ValueError()
+            targets.append(TransactionTarget(Signing(unhexlify(targ['recipient_pk'])),
+                                           int(targ['amount'])))
+        signatures = []
+        for sig in obj['signatures']:
+            signatures.append(unhexlify(sig))
 
-        iv = unhexlify(obj['iv'])
+        iv = unhexlify(obj['iv']) if 'iv' in obj else None
         return cls(inputs, targets, signatures, iv)
 
 

@@ -4,7 +4,6 @@ docutils==0.13.1
 imagesize==0.7.1
 Jinja2==2.9.5
 MarkupSafe==0.23
-pkg-resources==0.0.0
 pycrypto==2.6.1
 Pygments==2.2.0
 pytz==2016.10

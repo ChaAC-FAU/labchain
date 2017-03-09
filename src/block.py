@@ -26,9 +26,9 @@ class Block:
 
     def to_json_compatible(self):
         val = {}
-        val['hash'] = hexlify(self.hash).encode()
-        val['prev_block_hash'] = hexlify(self.prev_block_hash).encode()
-        val['merkle_root_hash'] = hexlify(self.merkle_root_hash).encode()
+        val['hash'] = hexlify(self.hash).decode()
+        val['prev_block_hash'] = hexlify(self.prev_block_hash).decode()
+        val['merkle_root_hash'] = hexlify(self.merkle_root_hash).decode()
         val['time'] = self.time.timestamp()
         val['nonce'] = self.nonce
         val['height'] = self.height
@@ -37,7 +37,8 @@ class Block:
         return val
 
     @classmethod
-    def from_json_compatible(cls):
+    def from_json_compatible(cls, val):
+        from .transaction import Transaction
         return cls(unhexlify(val['hash']),
                    unhexlify(val['prev_block_hash']),
                    datetime.fromtimestamp(float(val['time'])),
