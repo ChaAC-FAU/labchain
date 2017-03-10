@@ -11,6 +11,8 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   tests
+
 
 .. autosummary::
     :toctree: _autosummary
