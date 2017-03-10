@@ -160,6 +160,7 @@ class PeerConnection:
 class SocketServer(socketserver.TCPServer):
     allow_reuse_address = True
     def serve_forever_bg(self):
+        logging.info("listening on %s", self.server_address)
         Thread(target=self.serve_forever, daemon=True).start()
 
     def close_request(self, request):

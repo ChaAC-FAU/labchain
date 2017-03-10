@@ -50,3 +50,7 @@ class Signing:
             return self.rsa.exportKey()
         else:
             return self.rsa.publickey().exportKey()
+
+    def __eq__(self, other):
+        # TODO: it's possible that the same key has multiple different representations
+        return self.as_bytes() == other.as_bytes()
