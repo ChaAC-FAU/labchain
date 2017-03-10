@@ -38,7 +38,10 @@ class Blockchain:
         """
         Returns a block by its hash value, or None if it cannot be found.
         """
-        return self.blocks[self.block_indices.get(hash_val)]
+        idx = self.block_indices.get(hash_val)
+        if idx is None:
+            return None
+        return self.blocks[idx]
 
     def verify_all_transactions(self):
         """
