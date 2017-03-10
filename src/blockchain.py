@@ -53,6 +53,10 @@ class Blockchain:
                 return False
         return True
 
+    def verify_all(self):
+        """ Verify all blocks in this block chain. """
+        return all(block.verify(self) for block in self.blocks)
+
     @property
     def head(self):
         """ The head of this block chain. """
