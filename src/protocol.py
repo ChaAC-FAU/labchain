@@ -253,7 +253,7 @@ class Protocol:
     def received_transaction(self, transaction, _):
         """ Someone sent us a transaction. """
         for handler in self.trans_receive_handlers:
-            handler(Transaction.from_json_compatible(block))
+            handler(Transaction.from_json_compatible(transaction))
 
     def send_block_request(self, block_hash: bytes):
         """ Sends a request for a block to all our peers. """
