@@ -174,11 +174,12 @@ class Protocol:
     for handling messages from other peers.
     """
 
-    def __init__(self, bootstrap_peer, primary_block, listen_port=0):
+    def __init__(self, bootstrap_peers, primary_block, listen_port=0, listen_addr=""):
         """
-        :param bootstrap_peer: the network address of the peer where we bootstrap the P2P network from
+        :param bootstrap_peers: network addresses of peers where we bootstrap the P2P network from
         :param primary_block: the head of the primary block chain
         :param listen_port: the port where other peers should be able to reach us
+        :param listen_addr: the address where other peers should be able to reach us
         """
 
         self.block_receive_handlers = []
@@ -203,11 +204,11 @@ class Protocol:
 
                 conn = PeerConnection(self.client_address, self.proto, self.request)
                 self.proto.peers.append(conn)
-        self.server = SocketServer(("", listen_port), IncomingHandler)
+        self.server = SocketServer((listen_addr, listen_port), IncomingHandler)
         self.server.serve_forever_bg()
 
         # we want to do this only after we opened our listening socket
-        self.peers.append(PeerConnection(bootstrap_peer, self))
+        self.peers.extend([PeerConnection(peer, self) for peer in bootstrap_peers])
 
         Thread(target=self._main_thread, daemon=True).start()
 
