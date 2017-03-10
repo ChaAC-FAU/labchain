@@ -34,7 +34,7 @@ class Miner:
         self.stop_mining()
 
         chain = self.chainbuilder.primary_block_chain
-        transactions = self.chainbuilder.unconfirmed_transactions
+        transactions = self.chainbuilder.unconfirmed_transactions.values()
         block = mining_strategy.create_block(chain, transactions, self.reward_pubkey)
         self.cur_miner = ProofOfWork(block)
 
