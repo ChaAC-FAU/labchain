@@ -30,6 +30,7 @@ class Transaction:
         # same value, when the target is identical.
         # Reuse of IVs leads to inaccessible coins.
         self.iv = iv
+        self._hash = None
 
     def to_json_compatible(self):
         val = {}
@@ -72,16 +73,18 @@ class Transaction:
 
     def get_hash(self):
         """ Hash this transaction. Returns raw bytes. """
-        h = get_hasher()
-        if self.iv is not None:
-            h.update(self.iv)
-        for target in self.targets:
-            h.update(str(target.amount).encode())
-            h.update(target.recipient_pk.as_bytes())
-        for inp in self.inputs:
-            h.update(inp.transaction_hash)
-            h.update(str(inp.output_idx).encode())
-        return h.digest()
+        if self._hash is None:
+            h = get_hasher()
+            if self.iv is not None:
+                h.update(self.iv)
+            for target in self.targets:
+                h.update(str(target.amount).encode())
+                h.update(target.recipient_pk.as_bytes())
+            for inp in self.inputs:
+                h.update(inp.transaction_hash)
+                h.update(str(inp.output_idx).encode())
+            self._hash = h.digest()
+        return self._hash
 
     def sign(self, private_keys: SigningListType):
         """
