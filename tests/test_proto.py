@@ -12,8 +12,8 @@ proto1 = Protocol(("127.0.0.1", 1337), GENESIS_BLOCK, 1337)
 proto2 = Protocol(("127.0.0.1", 1337), GENESIS_BLOCK, 1338)
 miner1 = Miner(proto1, reward_key)
 miner2 = Miner(proto2, reward_key)
-miner2.chain_changed()
-miner1.chain_changed()
+miner2.start_mining()
+miner1.start_mining()
 
 
 
