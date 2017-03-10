@@ -4,6 +4,7 @@ from datetime import datetime
 from binascii import hexlify, unhexlify
 import json
 import logging
+import math
 
 from .merkle import merkle_tree
 from .crypto import get_hasher
@@ -91,24 +92,38 @@ class Block:
         """ Verify that the merkle root hash is correct for the transactions in this block. """
         return merkle_tree(self.transactions).get_hash() == self.merkle_root_hash
 
+    def _int_to_bytes(self, val: int):
+        l = val.bit_length()
+        l = (0 if l % 8 == 0 or l == 0 else 1) + l // 8;
+        return val.to_bytes(l, 'little')
+
     def get_partial_hash(self):
         """
         Computes a hash over the contents of this block, except for the nonce. The proof of
         work can use this partial hash to efficiently try different nonces. Other uses should
         use :any:`get_hash` to get the complete hash.
         """
+        # TODO: the dynamically sized values here could in theory allow two different objects
+        # to hash to the same value (e.g. ('ab', 'c') has same hash as ('a', 'bc') )
         hasher = get_hasher()
         hasher.update(self.prev_block_hash)
         hasher.update(self.merkle_root_hash)
         hasher.update(str(self.time.timestamp()).encode())
-        hasher.update(str(self.difficulty).encode())
+        hasher.update(self._int_to_bytes(self.difficulty))
         return hasher
+    def finish_hash(self, hasher):
+        """
+        Finishes the hash in `hasher` with the nonce in this block. The proof of
+        work can use this function to efficiently try different nonces. Other uses should
+        use :any:`get_hash` to get the complete hash in one step.
+        """
+        hasher.update(self._int_to_bytes(self.nonce))
+        return hasher.digest()
 
     def get_hash(self):
         """ Compute the hash of the header data. This is not necessarily the received hash value for this block! """
         hasher = self.get_partial_hash()
-        hasher.update(str(self.nonce).encode()) # for mining we want to get a copy of hasher here
-        return hasher.digest()
+        return self.finish_hash(hasher)
 
     def verify_difficulty(self):
         """ Verify that the hash value is correct and fulfills its difficulty promise. """

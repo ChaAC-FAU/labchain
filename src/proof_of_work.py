@@ -43,9 +43,7 @@ class ProofOfWork:
         hasher = self.block.get_partial_hash()
         while not self.stopped:
             for _ in range(1000):
-                h = hasher.copy()
-                h.update(str(self.block.nonce).encode())
-                self.block.hash = h.digest()
+                self.block.hash = self.block.finish_hash(hasher.copy())
                 if verify_proof_of_work(self.block):
                     return self.block
                 self.block.nonce += 1
