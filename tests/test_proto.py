@@ -18,17 +18,29 @@ miner1.start_mining()
 
 
 sleep(5)
-strans1 = miner2.chainbuilder.primary_block_chain.blocks[20].transactions[0]
-strans1 = TransactionInput(strans1.get_hash(), 0)
-trans = Transaction([strans1], [])
+target_key = Signing.generatePrivateKey()
+reward_trans = miner2.chainbuilder.primary_block_chain.blocks[20].transactions[0]
+trans_in = TransactionInput(reward_trans.get_hash(), 0)
+trans_targ = TransactionTarget(target_key, reward_trans.targets[0].amount)
+
+trans = Transaction([trans_in], [trans_targ])
 trans.sign([reward_key])
-print(trans.verify(miner1.chainbuilder.primary_block_chain, set()))
+assert trans.verify(miner1.chainbuilder.primary_block_chain, set()), "transaction should be valid"
+
 proto2.received('transaction', trans.to_json_compatible(), None)
 sleep(5)
-print(len(miner1.chainbuilder.primary_block_chain.blocks))
-print(len(miner2.chainbuilder.primary_block_chain.blocks))
-hashes1 = [b.hash for b in miner1.chainbuilder.primary_block_chain.blocks[:70]]
-hashes2 = [b.hash for b in miner2.chainbuilder.primary_block_chain.blocks[:70]]
-print(hashes1 == hashes2)
+chain_len1 = len(miner1.chainbuilder.primary_block_chain.blocks)
+chain_len2 = len(miner2.chainbuilder.primary_block_chain.blocks)
+print("Length of chain of miner 1: {}".format(chain_len1))
+print("Length of chain of miner 2: {}".format(chain_len2))
 
-print(trans.verify(miner1.chainbuilder.primary_block_chain, set()))
+assert max(chain_len1, chain_len2) * 90 // 100 < min(chain_len1, chain_len2), "chain lengths are VERY different"
+
+chain1 = miner1.chainbuilder.primary_block_chain
+hashes1 = [b.hash for b in chain1.blocks[:chain_len1 * 90 // 100]]
+hashes2 = [b.hash for b in miner2.chainbuilder.primary_block_chain.blocks[:chain_len1 * 90 // 100]]
+assert hashes1 == hashes2, "first 90% of chains should be identical"
+
+assert not trans.verify(miner1.chainbuilder.primary_block_chain, set()), "inserted transaction should be spent and therefore invalid"
+
+assert chain1.is_coin_still_valid(TransactionInput(trans.get_hash(), 0)), "someone spent our coins?"
