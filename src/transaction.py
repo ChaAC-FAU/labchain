@@ -108,15 +108,20 @@ class Transaction:
         return sender_pk.verify_sign(self.get_hash(), sig)
 
 
-    def _verify_single_spend(self, chain: Blockchain, prev_block: Block):
+    def _verify_single_spend(self, chain: Blockchain, other_trans: set, prev_block: Block):
         """ Verifies that all inputs have not been spent yet. """
-        if len(self.inputs) != len(set(self.inputs)):
+        inp_set = set(self.inputs)
+        if len(self.inputs) != len(inp_set):
             return False
+        other_inputs = {i for t in other_trans for i in t.inputs}
+        if other_inputs.intersection(inp_set):
+            return False
+
         for i in self.inputs:
             if not chain.is_coin_still_valid(i, prev_block):
                 return False
         return True
 
-    def verify(self, chain: Blockchain, prev_block:Block=None):
+    def verify(self, chain: Blockchain, other_trans:set, prev_block:Block=None):
         """ Verifies that this transaction is completely valid. """
-        return self._verify_single_spend(chain, prev_block) and self._verify_signatures(chain)
+        return self._verify_single_spend(chain, other_trans, prev_block) and self._verify_signatures(chain)

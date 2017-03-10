@@ -39,11 +39,11 @@ class ChainBuilder:
         Does all the housekeeping that needs to be done when a new longest chain is found.
         """
         self.primary_block_chain = chain
-        keys = set()
+        todelete = set()
         for (hash_val, trans) in self.unconfirmed_transactions.items():
-            if not trans.verify(chain):
-                keys.add(hash_val)
-        for hash_val in keys:
+            if not trans.verify(chain, set()):
+                todelete.add(hash_val)
+        for hash_val in todelete:
             del self.unconfirmed_transactions[hash_val]
 
         for handler in self.chain_change_handlers:

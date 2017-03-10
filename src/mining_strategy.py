@@ -14,11 +14,18 @@ def create_block(blockchain, unconfirmed_transactions, reward_pubkey):
     """
     head = blockchain.head
 
-    transactions = list(unconfirmed_transactions)
+    transactions = set()
+    for t in unconfirmed_transactions:
+        if t.verify(blockchain, transactions):
+            # TODO: choose most profitable of conflicting transactions
+            transactions.add(t)
+
+
     reward = blockchain.compute_blockreward(head)
     trans = Transaction([], [TransactionTarget(reward_pubkey, reward)], [], iv=head.hash)
-    transactions.append(trans)
+    transactions.add(trans)
 
+    transactions = list(transactions)
     tree = merkle_tree(transactions)
     difficulty = blockchain.compute_difficulty()
     return Block(None, head.hash, datetime.now(), 0, head.height + difficulty,

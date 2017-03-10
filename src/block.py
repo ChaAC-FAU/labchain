@@ -83,15 +83,23 @@ class Block:
 
     def verify_transactions(self, chain):
         """ Verify all transaction in this block are valid in the given block chain. """
+        if self.hash == GENESIS_BLOCK.hash:
+            return True
+
         mining_reward = None
         # TODO: mining fees and variable block rewards
+
+        prev_block = chain.get_block_by_hash(self.prev_block_hash)
+        assert prev_block is not None
+
+        trans_set = set(self.transactions)
         for t in self.transactions:
             if not t.inputs:
                 if mining_reward is not None:
                     return False
                 mining_reward = t
 
-            if not t.verify(chain):
+            if not t.verify(chain, trans_set - {t}, prev_block):
                 return False
         if mining_reward is not None:
             if sum(map(lambda t: t.amount, mining_reward.targets)) > chain.compute_blockreward(chain.get_block_by_hash(self.prev_block_hash)):
