@@ -94,10 +94,8 @@ class ChainBuilder:
             elif self.unconfirmed_block_chain[0].hash == block.prev_block_hash:
                 self.unconfirmed_block_chain.insert(0, block)
 
-            if block.height > self.unconfirmed_block_chain[0].height and block.height > self.primary_block_chain.head.height:
-                self.unconfirmed_block_chain = [block]
-                self.get_next_unconfirmed_block()
-        elif block.height > self.primary_block_chain.head.height:
+        if (not self.unconfirmed_block_chain or block.height > self.unconfirmed_block_chain[0].height) and \
+                block.height > self.primary_block_chain.head.height:
             self.unconfirmed_block_chain = [block]
             self.get_next_unconfirmed_block()
 
