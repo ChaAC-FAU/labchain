@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 
+"""
+The wallet allows a user to query account balance, send money, and get status information about a
+miner.
+"""
+
+__all__ = []
+
 import argparse
 import requests
-
-from binascii import hexlify, unhexlify
 
 from src.blockchain import Blockchain
 from src.block import Block
@@ -28,8 +33,9 @@ def main():
     parser = argparse.ArgumentParser(description="Wallet.")
     parser.add_argument("--miner-port", default=40203, type=int,
                         help="The RPC port of the miner to connect to.")
-    parser.add_argument("--show-transactions", type=argparse.FileType("rb"), default=[], action="append",
-                        help="Shows all transactions involving the public key stored in the specified file.")
+    parser.add_argument("--show-transactions", type=argparse.FileType("rb"), default=[],
+                        action="append", help="Shows all transactions involving the public key "
+                                              "stored in the specified file.")
     parser.add_argument("--show-network", action="store_true", default=False,
                         help="Prints networking information about the miner.")
     args = parser.parse_args()

@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 
+""" The executable that participates in the P2P network and optionally mines new blocks. """
+
+__all__ = []
+
 import argparse
+import json
 from urllib.parse import urlparse
 
 import flask
-import json
 app = flask.Flask(__name__)
 
 from src.crypto import Signing

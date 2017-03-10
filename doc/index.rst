@@ -6,18 +6,26 @@
 Welcome to blockchain's documentation!
 ======================================
 
-Contents:
 
-.. toctree::
-   :maxdepth: 2
+Executables
+***********
 
-   tests
+.. list-table::
+    :stub-columns: 1
+    :widths: 10 90
 
+    * - miner
+      - .. automodule:: miner
+    * - wallet
+      - .. automodule:: wallet
+
+
+Source Code Documentation
+*************************
 
 .. autosummary::
     :toctree: _autosummary
 
-    src
     src.blockchain
     src.block
     src.chainbuilder
@@ -29,6 +37,12 @@ Contents:
     src.protocol
     src.transaction
 
+Tests
+*****
+Run the tests like this:
+
+    >>> python3 -m tests.test_proto
+    >>> python3 -m tests.verifications
 
 
 Indices and tables

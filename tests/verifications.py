@@ -8,7 +8,7 @@ def trans_test(fn):
 
     gen_chain = Blockchain([GENESIS_BLOCK])
     assert gen_chain.verify_all()
-    key = Signing.generatePrivateKey()
+    key = Signing.generate_private_key()
     reward_trans = Transaction([], [TransactionTarget(key, gen_chain.compute_blockreward(gen_chain.head))])
     chain = extend_blockchain(gen_chain, [reward_trans])
     try:

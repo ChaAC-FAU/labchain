@@ -1,3 +1,5 @@
+""" Definitions of blocks, and the genesis block. """
+
 from datetime import datetime
 from binascii import hexlify, unhexlify
 import json
@@ -5,12 +7,32 @@ import logging
 
 from .merkle import merkle_tree
 from .crypto import get_hasher
-from .proof_of_work import verify_proof_of_work, GENESIS_DIFFICULTY
 
 __all__ = ['Block', 'GENESIS_BLOCK', 'GENESIS_BLOCK_HASH']
 
 class Block:
-    """ A block. """
+    """
+    A block.
+
+    :ivar hash: The hash value of this block.
+    :vartype hash: bytes
+    :ivar prev_block_hash: The hash of the previous block.
+    :vartype prev_block_hash: bytes
+    :ivar merkle_root_hash: The hash of the merkle tree root of the transactions in this block.
+    :vartype merkle_root_hash: bytes
+    :ivar time: The time when this block was created.
+    :vartype time: datetime
+    :ivar nonce: The nonce in this block that was required to achieve the proof of work.
+    :vartype nonce: int
+    :ivar height: The height (accumulated difficulty) of this block.
+    :vartype height: int
+    :ivar received_time: The time when we received this block.
+    :vartype received_time: datetime
+    :ivar difficulty: The difficulty of this block.
+    :vartype difficulty: int
+    :ivar transactions: The list of transactions in this block.
+    :vartype transactions: List[Transaction]
+    """
 
     def __init__(self, hash_val, prev_block_hash, time, nonce, height, received_time, difficulty, transactions, merkle_root_hash=None):
         self.hash = hash_val
@@ -24,6 +46,7 @@ class Block:
         self.transactions = transactions
 
     def to_json_compatible(self):
+        """ Returns a JSON-serializable representation of this object. """
         val = {}
         val['hash'] = hexlify(self.hash).decode()
         val['prev_block_hash'] = hexlify(self.prev_block_hash).decode()
@@ -37,6 +60,7 @@ class Block:
 
     @classmethod
     def from_json_compatible(cls, val):
+        """ Create a new block from its JSON-serializable representation. """
         from .transaction import Transaction
         return cls(unhexlify(val['hash']),
                    unhexlify(val['prev_block_hash']),
@@ -68,6 +92,11 @@ class Block:
         return merkle_tree(self.transactions).get_hash() == self.merkle_root_hash
 
     def get_partial_hash(self):
+        """
+        Computes a hash over the contents of this block, except for the nonce. The proof of
+        work can use this partial hash to efficiently try different nonces. Other uses should
+        use :any:`get_hash` to get the complete hash.
+        """
         hasher = get_hasher()
         hasher.update(self.prev_block_hash)
         hasher.update(self.merkle_root_hash)
@@ -129,7 +158,11 @@ class Block:
             return self.hash == GENESIS_BLOCK_HASH
         return self.verify_difficulty() and self.verify_merkle() and self.verify_prev_block(chain) and self.verify_transactions(chain)
 
+from .proof_of_work import verify_proof_of_work, GENESIS_DIFFICULTY
+
 GENESIS_BLOCK = Block(b"", b"None", datetime(2017, 3, 3, 10, 35, 26, 922898),
                       0, 0, datetime.now(), GENESIS_DIFFICULTY, [], merkle_tree([]).get_hash())
 GENESIS_BLOCK_HASH = GENESIS_BLOCK.get_hash()
 GENESIS_BLOCK.hash = GENESIS_BLOCK_HASH
+
+from .blockchain import Blockchain

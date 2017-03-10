@@ -1,14 +1,36 @@
-from .block import GENESIS_BLOCK, GENESIS_BLOCK_HASH
-from .blockchain import Blockchain
+"""
+The chain builder maintains the current longest confirmed (primary) block chain as well as one
+candidate for an even longer chain that it attempts to download and verify.
+"""
 
 import threading
+from typing import List, Dict, Callable, Optional
+
+from .block import GENESIS_BLOCK, GENESIS_BLOCK_HASH
+from .blockchain import Blockchain
 
 __all__ = ['ChainBuilder']
 
 class ChainBuilder:
     """
-    Maintains the current longest confirmed (primary) block chain as well as one candidate for an even longer
-    chain that it attempts to download and verify.
+    Maintains the current longest confirmed (primary) block chain as well as one candidate for an
+    even longer chain that it attempts to download and verify.
+
+    :ivar primary_block_chain: The longest fully validated block chain we know of.
+    :vartype primary_block_chain: Blockchain
+    :ivar unconfirmed_block_chain: A list of blocks (ordered young to old) that might lead to a
+                                   new primary block chain after all predecessors are fully
+                                   downloaded and verified.
+    :vartype unconfirmed_transactions: List[Block]
+    :ivar block_cache: A cache of received blocks, not bound to any one specific block chain.
+    :vartype block_cache: Dict[bytes, Block]
+    :ivar unconfirmed_transactions: Known transactions that are not part of the primary block chain.
+    :vartype unconfirmed_transactions: Dict[bytes, Transaction]
+    :ivar chain_change_handlers: Event handlers that get called when we find out about a new primary
+                                 block chain.
+    :vartype chain_change_handlers: List[Callable]
+    :ivar protocol: The protocol instance used by this chain builder.
+    :vartype protocol: Protocol
     """
 
     def __init__(self, protocol):
@@ -34,11 +56,12 @@ class ChainBuilder:
             self._thread_id = threading.get_ident()
         assert self._thread_id == threading.get_ident()
 
-    def block_request_received(self, block_hash):
+    def block_request_received(self, block_hash: bytes) -> 'Optional[Block]':
+        """ Our event handler for block requests in the protocol. """
         self._assert_thread_safety()
         return self.block_cache.get(block_hash)
 
-    def new_transaction_received(self, transaction):
+    def new_transaction_received(self, transaction: 'Transaction'):
         """ Event handler that is called by the network layer when a transaction is received. """
         self._assert_thread_safety()
         hash_val = transaction.get_hash()
@@ -47,10 +70,8 @@ class ChainBuilder:
             self.unconfirmed_transactions[hash_val] = transaction
             self.protocol.broadcast_transaction(transaction)
 
-    def _new_primary_block_chain(self, chain):
-        """
-        Does all the housekeeping that needs to be done when a new longest chain is found.
-        """
+    def _new_primary_block_chain(self, chain: 'Blockchain'):
+        """ Does all the housekeeping that needs to be done when a new longest chain is found. """
         self._assert_thread_safety()
         self.primary_block_chain = chain
         todelete = set()
@@ -82,10 +103,11 @@ class ChainBuilder:
         else:
             self.protocol.send_block_request(unc[-1].prev_block_hash)
 
-    def new_block_received(self, block):
+    def new_block_received(self, block: 'Block'):
         """ Event handler that is called by the network layer when a block is received. """
         self._assert_thread_safety()
-        if not block.verify_difficulty() or not block.verify_merkle() or block.hash in self.block_cache:
+        if not block.verify_difficulty() or not block.verify_merkle() or \
+                block.hash in self.block_cache:
             return
         self.block_cache[block.hash] = block
 
@@ -101,3 +123,6 @@ class ChainBuilder:
             self.unconfirmed_block_chain = [block]
             self.get_next_unconfirmed_block()
 
+from .protocol import Protocol
+from .block import Block
+from .transaction import Transaction

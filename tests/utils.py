@@ -1,5 +1,7 @@
 import src.proof_of_work
+import src.block
 src.proof_of_work.verify_proof_of_work = lambda b: True
+src.block.verify_proof_of_work = src.proof_of_work.verify_proof_of_work
 
 from src.block import *
 from src.blockchain import *
@@ -23,7 +25,7 @@ def trans_as_input(trans, out_idx=0):
 
 def new_trans(old_trans, out_idx=0):
     amount = old_trans.targets[out_idx].amount
-    key = Signing.generatePrivateKey()
+    key = Signing.generate_private_key()
     trans = Transaction([trans_as_input(old_trans, out_idx)],
                         [TransactionTarget(key, amount)])
     trans.sign([old_trans.targets[out_idx].recipient_pk])

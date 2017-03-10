@@ -1,38 +1,62 @@
+""" Defines transactions and their inputs and outputs. """
+
+import logging
 from collections import namedtuple
 from binascii import hexlify, unhexlify
-import logging
-
-from .blockchain import Blockchain
-from .block import Block
+from typing import List, Set
 
 from .crypto import get_hasher, Signing
 
 __all__ = ['TransactionTarget', 'TransactionInput', 'Transaction']
 
 TransactionTarget = namedtuple("TransactionTarget", ["recipient_pk", "amount"])
-""" The recipient of a transaction ('coin'). """
+"""
+The recipient of a transaction ('coin').
+
+:ivar recipient_pk: The public key of the recipient.
+:vartype recipient_pk: Signing
+:ivar amount: The amount sent to `recipient_pk`.
+:vartype amount: int
+"""
 
 TransactionInput = namedtuple("TransactionInput", ["transaction_hash", "output_idx"])
-""" One transaction input (pointer to 'coin'). """
+"""
+One transaction input (pointer to 'coin').
 
-from typing import List
-SigningListType = List[Signing]
+:ivar transaction_hash: The hash of the transaction that sent money to the sender.
+:vartype transaction_hash: bytes
+:ivar output_idx: The index into `Transaction.targets` of the `transaction_hash`.
+:vartype output_idx: int
+"""
 
 
 class Transaction:
+    """
+    A transaction.
 
-    def __init__(self, inputs: list, targets: list, signatures:list=None, iv:bytes=None):
+    :ivar inputs: The inputs of this transaction. Empty in the case of block reward transactions.
+    :vartype inputs: List[TransactionInput]
+    :ivar targets: The targets of this transaction.
+    :vartype targets: List[TransactionTarget]
+    :ivar signatures: Signatures for each input. Must be in the same order as `inputs`. Filled
+                      by :func:`sign`.
+    :vartype signatures: List[bytes]
+    :ivar iv: The IV is used to differentiate block reward transactions.  These have no inputs and
+              therefore would otherwise hash to the same value, when the target is identical.
+              Reuse of IVs leads to inaccessible coins.
+    :vartype iv: bytes
+    """
+
+    def __init__(self, inputs: 'List[TransactionInput]', targets: 'List[TransactionTarget]',
+                 signatures: 'List[bytes]'=None, iv: bytes=None):
         self.inputs = inputs
         self.targets = targets
         self.signatures = signatures or []
-        # The IV is used to differentiate block reward transactions.
-        # These have no inputs and therefore would otherwise hash to the
-        # same value, when the target is identical.
-        # Reuse of IVs leads to inaccessible coins.
         self.iv = iv
         self._hash = None
 
     def to_json_compatible(self):
+        """ Returns a JSON-serializable representation of this object. """
         val = {}
         val['inputs'] = []
         for inp in self.inputs:
@@ -55,6 +79,7 @@ class Transaction:
 
     @classmethod
     def from_json_compatible(cls, obj: dict):
+        """ Creates a new object of this class, from a JSON-serializable representation. """
         inputs = []
         for inp in obj['inputs']:
             inputs.append(TransactionInput(unhexlify(inp['transaction_hash']),
@@ -62,7 +87,7 @@ class Transaction:
         targets = []
         for targ in obj['targets']:
             targets.append(TransactionTarget(Signing(unhexlify(targ['recipient_pk'])),
-                                           int(targ['amount'])))
+                                             int(targ['amount'])))
         signatures = []
         for sig in obj['signatures']:
             signatures.append(unhexlify(sig))
@@ -71,7 +96,7 @@ class Transaction:
         return cls(inputs, targets, signatures, iv)
 
 
-    def get_hash(self):
+    def get_hash(self) -> bytes:
         """ Hash this transaction. Returns raw bytes. """
         if self._hash is None:
             h = get_hasher()
@@ -86,7 +111,7 @@ class Transaction:
             self._hash = h.digest()
         return self._hash
 
-    def sign(self, private_keys: SigningListType):
+    def sign(self, private_keys: 'List[Signing]'):
         """
         Sign this transaction with the given private keys. The private keys need
         to be in the same order as the inputs.
@@ -94,7 +119,7 @@ class Transaction:
         for private_key in private_keys:
             self.signatures.append(private_key.sign(self.get_hash()))
 
-    def _verify_signatures(self, chain: Blockchain):
+    def _verify_signatures(self, chain: 'Blockchain'):
         """ Verify that all inputs are signed and the signatures are valid. """
         if len(self.signatures) != len(self.inputs):
             logging.warning("wrong number of signatures")
@@ -105,7 +130,7 @@ class Transaction:
                 return False
         return True
 
-    def _verify_single_sig(self, sig: str, inp: TransactionInput, chain: Blockchain):
+    def _verify_single_sig(self, sig: str, inp: TransactionInput, chain: 'Blockchain') -> bool:
         """ Verifies the signature on a single input. """
         trans = chain.get_transaction_by_hash(inp.transaction_hash)
         if trans is None:
@@ -118,7 +143,8 @@ class Transaction:
         return True
 
 
-    def _verify_single_spend(self, chain: Blockchain, other_trans: set, prev_block: Block):
+    def _verify_single_spend(self, chain: 'Blockchain', other_trans: set,
+                             prev_block: 'Block') -> bool:
         """ Verifies that all inputs have not been spent yet. """
         inp_set = set(self.inputs)
         if len(self.inputs) != len(inp_set):
@@ -126,7 +152,8 @@ class Transaction:
             return False
         other_inputs = {i for t in other_trans for i in t.inputs}
         if other_inputs.intersection(inp_set):
-            logging.warning("Transaction may not spend the same coin as another transaction in the same block.")
+            logging.warning("Transaction may not spend the same coin as another transaction in the"
+                            " same block.")
             return False
 
         for i in self.inputs:
@@ -135,6 +162,11 @@ class Transaction:
                 return False
         return True
 
-    def verify(self, chain: Blockchain, other_trans:set, prev_block:Block=None):
+    def verify(self, chain: 'Blockchain', other_trans: 'Set[Transaction]',
+               prev_block: 'Block'=None) -> bool:
         """ Verifies that this transaction is completely valid. """
-        return self._verify_single_spend(chain, other_trans, prev_block) and self._verify_signatures(chain)
+        return self._verify_single_spend(chain, other_trans, prev_block) and \
+               self._verify_signatures(chain)
+
+from .blockchain import Blockchain
+from .block import Block

@@ -1,16 +1,21 @@
-from datetime import datetime
+""" Defines the contents of newly mined blocks. """
+
+from typing import List
 
 from .block import Block
-from .merkle import merkle_tree
 from .transaction import Transaction, TransactionTarget
-
-from Crypto.PublicKey import RSA
 
 __all__ = ['create_block']
 
-def create_block(blockchain, unconfirmed_transactions, reward_pubkey):
+def create_block(blockchain: 'Blockchain', unconfirmed_transactions: 'List[Transaction]',
+                 reward_pubkey: 'Signing') -> 'Block':
     """
     Creates a new block that can be mined.
+
+    :param blockchain: The blockchain on top of which the new block should fit.
+    :param unconfirmed_transactions: The transactions that should be considered for inclusion in
+                                     this block.
+    :param reward_pubkey: The key that should receive block rewards.
     """
     head = blockchain.head
 
@@ -26,3 +31,6 @@ def create_block(blockchain, unconfirmed_transactions, reward_pubkey):
     transactions.add(trans)
 
     return Block.create(blockchain, list(transactions))
+
+from .blockchain import Blockchain
+from .crypto import Signing

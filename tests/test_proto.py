@@ -6,7 +6,7 @@ from src.transaction import Transaction, TransactionInput, TransactionTarget
 
 from time import sleep
 
-reward_key = Signing.generatePrivateKey()
+reward_key = Signing.generate_private_key()
 
 proto1 = Protocol([], GENESIS_BLOCK, 1337)
 proto2 = Protocol([("127.0.0.1", 1337)], GENESIS_BLOCK, 1338)
@@ -18,7 +18,7 @@ miner1.start_mining()
 
 
 sleep(5)
-target_key = Signing.generatePrivateKey()
+target_key = Signing.generate_private_key()
 reward_trans = miner2.chainbuilder.primary_block_chain.blocks[20].transactions[0]
 trans_in = TransactionInput(reward_trans.get_hash(), 0)
 trans_targ = TransactionTarget(target_key, reward_trans.targets[0].amount)

@@ -1,14 +1,22 @@
+""" Functionality for creating a Merkle tree. """
+
 import json
 from binascii import hexlify
-from treelib import Node, Tree
 from itertools import zip_longest
+
+from treelib import Node, Tree
 
 from .crypto import get_hasher
 
 __all__ = ['merkle_tree', 'MerkleNode']
 
 class MerkleNode:
-    """ A hash tree node, pointing to a leaf value or another node. """
+    """
+    A hash tree node, pointing to a leaf value or another node.
+
+    :ivar v1: The first child of this node.
+    :ivar v2: The second child of this node.
+    """
 
     def __init__(self, v1, v2):
         self.v1 = v1
@@ -16,7 +24,7 @@ class MerkleNode:
         self.v2 = v2
         self.v2_hash = b'' if v2 is None else v2.get_hash()
 
-    def get_hash(self):
+    def get_hash(self) -> bytes:
         """ Compute the hash of this node. """
         hasher = get_hasher()
         hasher.update(self.v1_hash)
@@ -40,11 +48,11 @@ class MerkleNode:
         self._get_tree(tree, None)
         return str(tree)
 
-def merkle_tree(values):
+def merkle_tree(values: list) -> MerkleNode:
     """
-    Constructs a merkle tree from a list of values.
+    Constructs a Merkle tree from a list of values.
 
-    All values need to support a method get_hash().
+    All `values` need to support a method `get_hash()`.
     """
 
     if not values:
