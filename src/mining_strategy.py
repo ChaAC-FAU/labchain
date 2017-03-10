@@ -25,8 +25,4 @@ def create_block(blockchain, unconfirmed_transactions, reward_pubkey):
     trans = Transaction([], [TransactionTarget(reward_pubkey, reward)], [], iv=head.hash)
     transactions.add(trans)
 
-    transactions = list(transactions)
-    tree = merkle_tree(transactions)
-    difficulty = blockchain.compute_difficulty()
-    return Block(None, head.hash, datetime.now(), 0, head.height + difficulty,
-                 None, difficulty, transactions, tree.get_hash())
+    return Block.create(blockchain, list(transactions))

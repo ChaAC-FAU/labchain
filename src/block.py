@@ -47,6 +47,18 @@ class Block:
                    [Transaction.from_json_compatible(t) for t in list(val['transactions'])],
                    unhexlify(val['merkle_root_hash']))
 
+    @classmethod
+    def create(cls, blockchain: 'Blockchain', transactions: list, ts=None):
+        """
+        Create a new block for a certain blockchain, containing certain transactions.
+        """
+        tree = merkle_tree(transactions)
+        difficulty = blockchain.compute_difficulty()
+        if ts is None:
+            ts = datetime.now()
+        return Block(None, blockchain.head.hash, ts, 0, blockchain.head.height + difficulty,
+                     None, difficulty, transactions, tree.get_hash())
+
     def __str__(self):
         return json.dumps(self.to_json_compatible(), indent=4)
 
