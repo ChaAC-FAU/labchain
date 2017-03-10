@@ -11,7 +11,7 @@ __all__ = ['Block', 'GENESIS_BLOCK', 'GENESIS_BLOCK_HASH']
 class Block:
     """ A block. """
 
-    def __init__(self, hash_val, prev_block_hash, time, nonce, height, received_time, difficulty, merkle_root_hash=None, transactions=None):
+    def __init__(self, hash_val, prev_block_hash, time, nonce, height, received_time, difficulty, transactions, merkle_root_hash=None):
         self.hash = hash_val
         self.prev_block_hash = prev_block_hash
         self.merkle_root_hash = merkle_root_hash
@@ -21,8 +21,6 @@ class Block:
         self.received_time = received_time
         self.difficulty = difficulty
         self.transactions = transactions
-        assert transactions is not None
-        # TODO: fix param order, make transactions non-optional
 
     def to_json_compatible(self):
         val = {}
@@ -46,8 +44,8 @@ class Block:
                    int(val['height']),
                    datetime.now(),
                    int(val['difficulty']),
-                   unhexlify(val['merkle_root_hash']),
-                   [Transaction.from_json_compatible(t) for t in list(val['transactions'])])
+                   [Transaction.from_json_compatible(t) for t in list(val['transactions'])],
+                   unhexlify(val['merkle_root_hash']))
 
     def __str__(self):
         return json.dumps(self.to_json_compatible(), indent=4)
@@ -113,6 +111,6 @@ class Block:
         return self.verify_difficulty() and self.verify_merkle() and self.verify_prev_block(chain) and self.verify_transactions(chain)
 
 GENESIS_BLOCK = Block(b"", b"None", datetime(2017, 3, 3, 10, 35, 26, 922898),
-                      0, 0, datetime.now(), GENESIS_DIFFICULTY, merkle_tree([]).get_hash(), [])
+                      0, 0, datetime.now(), GENESIS_DIFFICULTY, [], merkle_tree([]).get_hash())
 GENESIS_BLOCK_HASH = GENESIS_BLOCK.get_hash()
 GENESIS_BLOCK.hash = GENESIS_BLOCK_HASH

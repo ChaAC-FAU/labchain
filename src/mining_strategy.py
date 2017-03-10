@@ -29,4 +29,4 @@ def create_block(blockchain, unconfirmed_transactions, reward_pubkey):
     tree = merkle_tree(transactions)
     difficulty = blockchain.compute_difficulty()
     return Block(None, head.hash, datetime.now(), 0, head.height + difficulty,
-                 None, difficulty, tree.get_hash(), transactions)
+                 None, difficulty, transactions, tree.get_hash())
