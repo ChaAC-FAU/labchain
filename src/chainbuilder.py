@@ -1,6 +1,8 @@
 from .block import GENESIS_BLOCK, GENESIS_BLOCK_HASH
 from .blockchain import Blockchain
 
+import threading
+
 __all__ = ['ChainBuilder']
 
 class ChainBuilder:
@@ -25,11 +27,20 @@ class ChainBuilder:
         protocol.block_request_handlers.append(self.block_request_received)
         self.protocol = protocol
 
+        self._thread_id = None
+
+    def _assert_thread_safety(self):
+        if self._thread_id is None:
+            self._thread_id = threading.get_ident()
+        assert self._thread_id == threading.get_ident()
+
     def block_request_received(self, block_hash):
+        self._assert_thread_safety()
         return self.block_cache.get(block_hash)
 
     def new_transaction_received(self, transaction):
         """ Event handler that is called by the network layer when a transaction is received. """
+        self._assert_thread_safety()
         hash_val = transaction.get_hash()
         if self.primary_block_chain.get_transaction_by_hash(hash_val) is None:
            self.unconfirmed_transactions[hash_val] = transaction
@@ -38,6 +49,7 @@ class ChainBuilder:
         """
         Does all the housekeeping that needs to be done when a new longest chain is found.
         """
+        self._assert_thread_safety()
         self.primary_block_chain = chain
         todelete = set()
         for (hash_val, trans) in self.unconfirmed_transactions.items():
@@ -54,6 +66,7 @@ class ChainBuilder:
         Helper function that tries to complete the unconfirmed chain,
         possibly asking the network layer for more blocks.
         """
+        self._assert_thread_safety()
         unc = self.unconfirmed_block_chain
         while unc[-1].prev_block_hash in self.block_cache:
             unc.append(self.block_cache[unc[-1].prev_block_hash])
@@ -69,6 +82,7 @@ class ChainBuilder:
 
     def new_block_received(self, block):
         """ Event handler that is called by the network layer when a block is received. """
+        self._assert_thread_safety()
         if not block.verify_difficulty() or not block.verify_merkle() or block.hash in self.block_cache:
             return
         self.block_cache[block.hash] = block

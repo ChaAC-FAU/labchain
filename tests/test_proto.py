@@ -25,7 +25,7 @@ strans2 = miner2.chainbuilder.primary_block_chain.head.transactions[0]
 strans2 = TransactionInput(strans2.get_hash(), 0)
 trans = Transaction([strans1, strans2], [])
 trans.sign([reward_key, reward_key])
-miner2.chainbuilder.new_transaction_received(trans)
+proto2.received('transaction', trans.to_json_compatible(), None)
 sleep(5)
 print(len(miner1.chainbuilder.primary_block_chain.blocks))
 print(len(miner2.chainbuilder.primary_block_chain.blocks))
