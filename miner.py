@@ -26,6 +26,9 @@ def parse_addr_port(val):
     return (url.hostname, url.port)
 
 def rpc_server(port, chainbuilder):
+    @app.route("/network-info", methods=['GET'])
+    def get_network_info():
+        return json.dumps([list(peer.peer_addr)[:2] for peer in chainbuilder.protocol.peers if peer.is_connected])
 
     @app.route("/transactions", methods=['POST'])
     def get_transactions_for_key():
