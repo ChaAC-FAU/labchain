@@ -212,12 +212,17 @@ class Protocol:
 
         Thread(target=self._main_thread, daemon=True).start()
 
-    def broadcast_primary_block(self, block):
+    def broadcast_primary_block(self, block: Block):
         """ Notifies all peers and local listeners of a new primary block. """
         self._primary_block = block.to_json_compatible()
         for peer in self.peers:
             peer.send_msg("block", self._primary_block)
         self.received('block', self._primary_block, None, 0)
+
+    def broadcast_transaction(self, trans: Transaction):
+        """ Notifies all peers and local listeners of a new transaction. """
+        for peer in self.peers:
+            peer.send_msg("transaction", trans.to_json_compatible())
 
     def received(self, msg_type, msg_param, peer, prio=1):
         """ Called by a PeerConnection when a new message was received. """

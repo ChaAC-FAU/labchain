@@ -18,13 +18,11 @@ miner1.start_mining()
 
 
 sleep(5)
-#proto.fake_block_received(GENESIS_BLOCK)
-strans1 = miner2.chainbuilder.primary_block_chain.head.transactions[0]
+strans1 = miner2.chainbuilder.primary_block_chain.blocks[20].transactions[0]
 strans1 = TransactionInput(strans1.get_hash(), 0)
-strans2 = miner2.chainbuilder.primary_block_chain.head.transactions[0]
-strans2 = TransactionInput(strans2.get_hash(), 0)
-trans = Transaction([strans1, strans2], [])
-trans.sign([reward_key, reward_key])
+trans = Transaction([strans1], [])
+trans.sign([reward_key])
+print(trans.verify(miner1.chainbuilder.primary_block_chain, set()))
 proto2.received('transaction', trans.to_json_compatible(), None)
 sleep(5)
 print(len(miner1.chainbuilder.primary_block_chain.blocks))
@@ -32,3 +30,5 @@ print(len(miner2.chainbuilder.primary_block_chain.blocks))
 hashes1 = [b.hash for b in miner1.chainbuilder.primary_block_chain.blocks[:70]]
 hashes2 = [b.hash for b in miner2.chainbuilder.primary_block_chain.blocks[:70]]
 print(hashes1 == hashes2)
+
+print(trans.verify(miner1.chainbuilder.primary_block_chain, set()))

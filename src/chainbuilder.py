@@ -42,8 +42,10 @@ class ChainBuilder:
         """ Event handler that is called by the network layer when a transaction is received. """
         self._assert_thread_safety()
         hash_val = transaction.get_hash()
-        if self.primary_block_chain.get_transaction_by_hash(hash_val) is None:
-           self.unconfirmed_transactions[hash_val] = transaction
+        if self.primary_block_chain.get_transaction_by_hash(hash_val) is None and \
+                hash_val not in self.unconfirmed_transactions:
+            self.unconfirmed_transactions[hash_val] = transaction
+            self.protocol.broadcast_transaction(transaction)
 
     def _new_primary_block_chain(self, chain):
         """
