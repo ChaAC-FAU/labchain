@@ -1,6 +1,6 @@
 """ Functionality for mining new blocks. """
 
-from threading import Thread
+from threading import Thread, Condition
 from time import sleep
 from typing import Optional
 
@@ -30,37 +30,58 @@ class Miner:
     def __init__(self, proto, reward_pubkey):
         self.proto = proto
         self.chainbuilder = ChainBuilder(proto)
-        self.chainbuilder.chain_change_handlers.append(self.start_mining)
+        self.chainbuilder.chain_change_handlers.append(self._chain_changed)
         self._cur_miner = None
         self.reward_pubkey = reward_pubkey
+        self._stopped = False
+        self._miner_cond = Condition()
         Thread(target=self._miner_thread, daemon=True).start()
 
     def _miner_thread(self):
+        def wait_for_miner():
+            with self._miner_cond:
+                while self._cur_miner is None:
+                    if self._stopped:
+                        return None
+                    self._miner_cond.wait()
+                return self._cur_miner
+
         while True:
-            miner = self._cur_miner
+            miner = wait_for_miner()
             if miner is None:
-                # TODO: condition variable
-                _yield()
-            else:
-                block = miner.run()
-                self._cur_miner = None
-                if block is not None:
-                    self.proto.broadcast_primary_block(block)
+                return
+            block = miner.run()
+            with self._miner_cond:
+                if self._cur_miner == miner:
+                    self._cur_miner = None
+            if block is not None:
+                self.proto.broadcast_primary_block(block)
 
     def start_mining(self):
         """ Start mining on a new block. """
-        self.stop_mining()
-
         chain = self.chainbuilder.primary_block_chain
         transactions = self.chainbuilder.unconfirmed_transactions.values()
         block = mining_strategy.create_block(chain, transactions, self.reward_pubkey)
-        self._cur_miner = ProofOfWork(block)
+        with self._miner_cond:
+            self._stop_mining_for_now()
+            self._cur_miner = ProofOfWork(block)
+            self._miner_cond.notify()
+
+    def _chain_changed(self):
+        if not self._stopped:
+            self.start_mining()
+
+    def _stop_mining_for_now(self):
+        if self._cur_miner:
+            self._cur_miner.abort()
 
     def stop_mining(self):
         """ Stop all mining. """
-        if self._cur_miner:
-            self._cur_miner.abort()
+        self._stopped = True
+        with self._miner_cond:
+            self._stop_mining_for_now()
             self._cur_miner = None
+            self._miner_cond.notify()
 
 from .protocol import Protocol
 from .chainbuilder import ChainBuilder
