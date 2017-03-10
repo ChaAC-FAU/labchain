@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import src.proof_of_work
 import src.block
 src.proof_of_work.verify_proof_of_work = lambda b: True
@@ -7,8 +9,6 @@ from src.block import *
 from src.blockchain import *
 from src.crypto import *
 from src.transaction import *
-
-from datetime import datetime
 
 
 def extend_blockchain(chain, trans:list=None, verify_res=True):

@@ -39,10 +39,7 @@ Source Code Documentation
 
 Tests
 *****
-Run the tests like this:
-
-    >>> python3 -m tests.test_proto
-    >>> python3 -m tests.verifications
+To run the tests, just run the `pytest` command.
 
 
 Indices and tables
