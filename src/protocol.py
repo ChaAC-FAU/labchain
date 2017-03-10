@@ -83,6 +83,10 @@ class PeerConnection:
         return wrapper
 
     def close(self):
+        if not self.is_connected:
+            return
+
+        logging.info("closing connection to peer %s", self._sock_addr)
         while not self.outgoing_msgs.empty():
             self.outgoing_msgs.get_nowait()
         self.outgoing_msgs.put(None)
@@ -122,7 +126,13 @@ class PeerConnection:
         while True:
             buf = b""
             while not buf or buf[-1] != ord('\n'):
-                tmp = self.socket.recv(1)
+                try:
+                    tmp = self.socket.recv(1)
+                except socket.timeout as e:
+                    if buf:
+                        raise e
+                    continue
+
                 if not tmp:
                     return
                 buf += tmp
