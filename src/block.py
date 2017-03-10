@@ -89,7 +89,7 @@ class Block:
 
     def verify_prev_block(self, chain):
         """ Verify the previous block pointer points to a valid block in the given block chain. """
-        return chain.get_block_by_hash(chain) is not None
+        return chain.get_block_by_hash(self.prev_block_hash) is not None
 
     def verify_transactions(self, chain):
         """ Verify all transaction in this block are valid in the given block chain. """
