@@ -53,6 +53,7 @@ class PeerConnection:
         Does not return until the writer thread does.
         """
         if self.socket is None:
+            logging.info("connecting to peer %s", repr(self._sock_addr))
             self.socket = socket.create_connection(self._sock_addr)
         self.socket.sendall(HELLO_MSG)
         if self.socket.recv(len(HELLO_MSG)) != HELLO_MSG:
@@ -141,7 +142,7 @@ class PeerConnection:
             logging.debug("received %s", obj['msg_type'])
 
             if msg_type == 'myport':
-                self.peer_addr = (self._sock_addr,) + (int(msg_param),) + self._sock_addr[2:]
+                self.peer_addr = (self._sock_addr[0],) + (int(msg_param),) + self._sock_addr[2:]
             else:
                 self.proto.received(msg_type, msg_param, self)
 
@@ -183,7 +184,10 @@ class Protocol:
             """ Handler for incoming P2P connections. """
             proto = self
             def handle(self):
+                logging.info("connection from peer %s", repr(self.client_address))
                 if len(self.proto.peers) > MAX_PEERS:
+                    logging.warn("too many connections: rejecting peer %s", repr(self.client_address))
+                    self.request.close()
                     # TODO: separate limits for incoming and outgoing connections
                     return
 
