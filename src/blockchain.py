@@ -1,4 +1,5 @@
 __all__ = ['Blockchain']
+import logging
 
 class Blockchain:
     def __init__(self, blocks: list):
@@ -17,7 +18,7 @@ class Blockchain:
                     return trans
         return None
 
-    def is_coin_still_valid(self, transaction_input, prev_block=None):
+    def is_coin_still_valid(self, transaction_input: 'TransactionInput', prev_block: 'Block'=None):
         """
         Validates that the coins that were sent in the transaction identified
         by `transaction_hash_val` to the nth receiver (n=output_idx) have not been

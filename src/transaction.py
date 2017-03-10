@@ -1,5 +1,7 @@
 from collections import namedtuple
 from binascii import hexlify, unhexlify
+import logging
+
 from .blockchain import Blockchain
 from .block import Block
 
@@ -92,6 +94,7 @@ class Transaction:
     def _verify_signatures(self, chain: Blockchain):
         """ Verify that all inputs are signed and the signatures are valid. """
         if len(self.signatures) != len(self.inputs):
+            logging.warning("wrong number of signatures")
             return False
 
         for (s, i) in zip(self.signatures, self.inputs):
@@ -103,22 +106,29 @@ class Transaction:
         """ Verifies the signature on a single input. """
         trans = chain.get_transaction_by_hash(inp.transaction_hash)
         if trans is None:
+            logging.warning("Referenced transaction input could not be found.")
             return False
         sender_pk = trans.targets[inp.output_idx].recipient_pk
-        return sender_pk.verify_sign(self.get_hash(), sig)
+        if not sender_pk.verify_sign(self.get_hash(), sig):
+            logging.warning("Transaction signature does not verify.")
+            return False
+        return True
 
 
     def _verify_single_spend(self, chain: Blockchain, other_trans: set, prev_block: Block):
         """ Verifies that all inputs have not been spent yet. """
         inp_set = set(self.inputs)
         if len(self.inputs) != len(inp_set):
+            logging.warning("Transaction may not spend the same coin twice.")
             return False
         other_inputs = {i for t in other_trans for i in t.inputs}
         if other_inputs.intersection(inp_set):
+            logging.warning("Transaction may not spend the same coin as another transaction in the same block.")
             return False
 
         for i in self.inputs:
             if not chain.is_coin_still_valid(i, prev_block):
+                logging.debug("Transaction refers to a coin that was already spent.")
                 return False
         return True
 

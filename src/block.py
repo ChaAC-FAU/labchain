@@ -1,6 +1,7 @@
 from datetime import datetime
 from binascii import hexlify, unhexlify
 import json
+import logging
 
 from .merkle import merkle_tree
 from .crypto import get_hasher
@@ -84,8 +85,12 @@ class Block:
         """ Verify that the hash value is correct and fulfills its difficulty promise. """
         # TODO: move this some better place
         if self.hash != self.get_hash():
+            logging.warning("block has invalid hash value")
             return False
-        return verify_proof_of_work(self)
+        if not verify_proof_of_work(self):
+            logging.warning("block does not satisfy proof of work")
+            return False
+        return True
 
     def verify_prev_block(self, chain):
         """ Verify the previous block pointer points to a valid block in the given block chain. """
@@ -106,6 +111,7 @@ class Block:
         for t in self.transactions:
             if not t.inputs:
                 if mining_reward is not None:
+                    logging.warning("block has more than one reward transaction")
                     return False
                 mining_reward = t
 
@@ -113,6 +119,7 @@ class Block:
                 return False
         if mining_reward is not None:
             if sum(map(lambda t: t.amount, mining_reward.targets)) > chain.compute_blockreward(chain.get_block_by_hash(self.prev_block_hash)):
+                logging.warning("mining reward is too large")
                 return False
         return True
 
