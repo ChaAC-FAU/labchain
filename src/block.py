@@ -111,9 +111,10 @@ class Block:
         hasher = get_hasher()
         hasher.update(self.prev_block_hash)
         hasher.update(self.merkle_root_hash)
-        hasher.update(str(self.time.timestamp()).encode())
+        hasher.update(pack("<d", self.time.timestamp()))
         hasher.update(self._int_to_bytes(self.difficulty))
         return hasher
+
     def finish_hash(self, hasher):
         """
         Finishes the hash in `hasher` with the nonce in this block. The proof of
