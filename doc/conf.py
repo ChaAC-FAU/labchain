@@ -32,6 +32,7 @@ sys.path.insert(0, os.path.split(os.path.split(__file__)[0])[0])
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
+    'sphinx_autodoc_typehints',
     'sphinx.ext.doctest',
     'sphinx.ext.coverage',
 ]
