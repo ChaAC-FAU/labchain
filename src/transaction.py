@@ -135,7 +135,7 @@ class Transaction:
                 return False
         return True
 
-    def _verify_single_sig(self, sig: str, inp: TransactionInput, chain: 'Blockchain') -> bool:
+    def _verify_single_sig(self, sig: bytes, inp: TransactionInput, chain: 'Blockchain') -> bool:
         """ Verifies the signature on a single input. """
         trans = chain.get_transaction_by_hash(inp.transaction_hash)
         if trans is None:
