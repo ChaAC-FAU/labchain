@@ -102,12 +102,17 @@ class Transaction:
             h = get_hasher()
             if self.iv is not None:
                 h.update(self.iv)
+
+            h.update(Block._int_to_bytes(len(self.targets)))
             for target in self.targets:
-                h.update(str(target.amount).encode())
+                h.update(Block._int_to_bytes(target.amount))
                 h.update(target.recipient_pk.as_bytes())
+
+            h.update(Block._int_to_bytes(len(self.inputs)))
             for inp in self.inputs:
                 h.update(inp.transaction_hash)
-                h.update(str(inp.output_idx).encode())
+                h.update(Block._int_to_bytes(inp.output_idx))
+
             self._hash = h.digest()
         return self._hash
 

@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from binascii import hexlify, unhexlify
+from struct import pack
 import json
 import logging
 import math
@@ -92,10 +93,14 @@ class Block:
         """ Verify that the merkle root hash is correct for the transactions in this block. """
         return merkle_tree(self.transactions).get_hash() == self.merkle_root_hash
 
-    def _int_to_bytes(self, val: int):
+    @staticmethod
+    def _int_to_bytes(val: int) -> bytes:
+        """ Turns an (arbitrarily long) integer into a bytes sequence. """
         l = val.bit_length()
-        l = (0 if l % 8 == 0 or l == 0 else 1) + l // 8;
-        return val.to_bytes(l, 'little')
+        l = (0 if l % 8 == 0 or l == 0 else 1) + l // 8
+        # we need to include the length in the hash in some way, otherwise e.g.
+        # the numbers (0xffff, 0x00) would be encoded identically to (0xff, 0xff00)
+        return pack("<Q", l) + val.to_bytes(l, 'little')
 
     def get_partial_hash(self):
         """
@@ -103,8 +108,6 @@ class Block:
         work can use this partial hash to efficiently try different nonces. Other uses should
         use :any:`get_hash` to get the complete hash.
         """
-        # TODO: the dynamically sized values here could in theory allow two different objects
-        # to hash to the same value (e.g. ('ab', 'c') has same hash as ('a', 'bc') )
         hasher = get_hasher()
         hasher.update(self.prev_block_hash)
         hasher.update(self.merkle_root_hash)
