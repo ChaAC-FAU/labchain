@@ -51,5 +51,8 @@ class Signing:
             return self.rsa.publickey().exportKey()
 
     def __eq__(self, other: 'Signing'):
-        # TODO: it's possible that the same key has multiple different representations
-        return self.as_bytes() == other.as_bytes()
+        return self.rsa.e == other.rsa.e and self.rsa.n == other.rsa.n
+
+    def __hash__(self):
+        return hash((self.rsa.e, self.rsa.n))
+
