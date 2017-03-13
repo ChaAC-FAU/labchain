@@ -1,4 +1,6 @@
 from time import sleep
+import logging
+#logging.basicConfig(level=logging.DEBUG)
 
 from src.protocol import Protocol
 from src.mining import Miner
@@ -26,7 +28,6 @@ def test_proto():
 
         trans = Transaction([trans_in], [trans_targ])
         trans.sign([reward_key])
-        logging.warning(repr(trans.to_json_compatible()))
         assert trans.verify(chain, set()), "transaction should be valid"
 
         proto2.received('transaction', trans.to_json_compatible(), None)
