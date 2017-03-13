@@ -96,8 +96,8 @@ class Blockchain:
         """
         return self.blocks[-1]
 
-    def compute_difficulty(self) -> int:
-        """ Compute the desired difficulty for the next block. """
+    def compute_difficulty(self, prev_block: 'Block'=None) -> int:
+        """ Compute the desired difficulty for the block after `prev_block` (defaults to `head`). """
         # TODO: dynamic calculation
         # TODO: verify difficulty in new blocks
         return self.head.difficulty

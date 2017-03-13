@@ -145,6 +145,14 @@ class Block:
         """ Verify the previous block pointer points to a valid block in the given block chain. """
         if self.hash == GENESIS_BLOCK_HASH:
             return True
+        prev = chain.get_block_by_hash(self.prev_block_hash)
+        if prev is None:
+            logging.warning("Previous block is missing in the block chain.")
+            return False
+        if prev.height + chain.compute_difficulty(prev) != self.height:
+            logging.warning("Block has wrong height.")
+            return False
+        return True
 
     def verify_transactions(self, chain):
         """ Verify all transaction in this block are valid in the given block chain. """
