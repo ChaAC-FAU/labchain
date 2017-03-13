@@ -27,7 +27,8 @@ def create_block(blockchain: 'Blockchain', unconfirmed_transactions: 'List[Trans
 
 
     reward = blockchain.compute_blockreward(head)
-    trans = Transaction([], [TransactionTarget(reward_pubkey, reward)], [], iv=head.hash)
+    fees = sum(t.get_transaction_fee(blockchain) for t in transactions)
+    trans = Transaction([], [TransactionTarget(reward_pubkey, reward + fees)], [], iv=head.hash)
     transactions.add(trans)
 
     return Block.create(blockchain, list(transactions))
