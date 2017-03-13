@@ -16,27 +16,29 @@ def test_proto():
     miner2.start_mining()
     miner1.start_mining()
 
-    sleep(5)
-    target_key = Signing.generate_private_key()
-    chain = miner1.chainbuilder.primary_block_chain
-    reward_trans = chain.blocks[20].transactions[0]
-    trans_in = TransactionInput(reward_trans.get_hash(), 0)
-    trans_targ = TransactionTarget(target_key, reward_trans.targets[0].amount)
+    try:
+        sleep(5)
+        target_key = Signing.generate_private_key()
+        chain = miner1.chainbuilder.primary_block_chain
+        reward_trans = chain.blocks[20].transactions[0]
+        trans_in = TransactionInput(reward_trans.get_hash(), 0)
+        trans_targ = TransactionTarget(target_key, reward_trans.targets[0].amount)
 
-    trans = Transaction([trans_in], [trans_targ])
-    trans.sign([reward_key])
-    logging.warning(repr(trans.to_json_compatible()))
-    assert trans.verify(chain, set()), "transaction should be valid"
+        trans = Transaction([trans_in], [trans_targ])
+        trans.sign([reward_key])
+        logging.warning(repr(trans.to_json_compatible()))
+        assert trans.verify(chain, set()), "transaction should be valid"
 
-    proto2.received('transaction', trans.to_json_compatible(), None)
-    sleep(5)
+        proto2.received('transaction', trans.to_json_compatible(), None)
+        sleep(5)
 
-    chain_len1 = len(miner1.chainbuilder.primary_block_chain.blocks)
-    chain_len2 = len(miner2.chainbuilder.primary_block_chain.blocks)
-    print("Length of chain of miner 1: {}".format(chain_len1))
-    print("Length of chain of miner 2: {}".format(chain_len2))
-    miner1.stop_mining()
-    miner2.stop_mining()
+        chain_len1 = len(miner1.chainbuilder.primary_block_chain.blocks)
+        chain_len2 = len(miner2.chainbuilder.primary_block_chain.blocks)
+        print("Length of chain of miner 1: {}".format(chain_len1))
+        print("Length of chain of miner 2: {}".format(chain_len2))
+    finally:
+        miner1.stop_mining()
+        miner2.stop_mining()
 
     assert max(chain_len1, chain_len2) * 90 // 100 < min(chain_len1, chain_len2), "chain lengths are VERY different"
 
