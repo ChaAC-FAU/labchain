@@ -13,12 +13,30 @@ class Blockchain:
     :ivar block_indices: A dictionary allowing efficient lookup of the index of a block in this
                          block chain by its hash value.
     :vartype block_indices: Dict[bytes, int]
+    :ivar unspent_coins: A dictionary mapping from (allowed/available) transaction inputs
+                         to the transaction output that created this coin.
+    :vartype unspent_coins: Dict[TransactionInput, TransactionTarget]
     """
 
     def __init__(self, blocks: 'List[Block]'):
         self.blocks = blocks
         assert self.blocks[0].height == 0
         self.block_indices = {block.hash: i for (i, block) in enumerate(blocks)}
+        self.unspent_coins = self._compute_unspent_coins()
+
+    def _compute_unspent_coins(self):
+        val = {}
+
+        for b in self.blocks:
+            for t in b.transactions:
+                for inp in t.inputs:
+                    if inp not in val:
+                        logging.warning("Aborting computation of unspent transactions because a transaction spent an unavailable coin.")
+                        return {}
+                    del val[inp]
+                for i, target in enumerate(t.targets):
+                    val[TransactionInput(t.get_hash(), i)] = target
+        return val
 
     def get_transaction_by_hash(self, hash_val: bytes) -> 'Optional[Transaction]':
         """ Returns a transaction from its hash, or None. """
@@ -40,8 +58,8 @@ class Blockchain:
         :param prev_block: The youngest block in this block chain that should be considered for
                            the validation.
         """
-        if prev_block is None:
-            prev_block = self.head
+        if prev_block is None or prev_block is self.head:
+            return transaction_input in self.unspent_coins
 
         idx = self.block_indices[prev_block.hash]
         assert self.blocks[idx] is prev_block
