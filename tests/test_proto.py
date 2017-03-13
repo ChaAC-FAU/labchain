@@ -16,17 +16,17 @@ def test_proto():
     miner2.start_mining()
     miner1.start_mining()
 
-
-
     sleep(5)
     target_key = Signing.generate_private_key()
-    reward_trans = miner2.chainbuilder.primary_block_chain.blocks[20].transactions[0]
+    chain = miner1.chainbuilder.primary_block_chain
+    reward_trans = chain.blocks[20].transactions[0]
     trans_in = TransactionInput(reward_trans.get_hash(), 0)
     trans_targ = TransactionTarget(target_key, reward_trans.targets[0].amount)
 
     trans = Transaction([trans_in], [trans_targ])
     trans.sign([reward_key])
-    assert trans.verify(miner1.chainbuilder.primary_block_chain, set()), "transaction should be valid"
+    logging.warning(repr(trans.to_json_compatible()))
+    assert trans.verify(chain, set()), "transaction should be valid"
 
     proto2.received('transaction', trans.to_json_compatible(), None)
     sleep(5)
