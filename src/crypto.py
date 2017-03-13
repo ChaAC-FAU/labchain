@@ -73,3 +73,10 @@ class Signing:
     def __hash__(self):
         return hash((self.rsa.e, self.rsa.n))
 
+    @property
+    def has_private(self) -> bool:
+        """
+        Returns a bool value indicating whether this instance has a private key that can be used to
+        sign things.
+        """
+        return self.rsa.has_private()
