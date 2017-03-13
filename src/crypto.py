@@ -45,6 +45,12 @@ class Signing:
         """ Generate a new private key. """
         return Signing(RSA.generate(3072).exportKey())
 
+    @classmethod
+    def from_file(cls, path):
+        """ Reads a private or public key from the file at `path`. """
+        with open(path, 'rb') as f:
+            return cls(f.read())
+
     def as_bytes(self, include_priv: bool=False) -> bytes:
         """ Serialize this key to a `bytes` value. """
         if include_priv:
