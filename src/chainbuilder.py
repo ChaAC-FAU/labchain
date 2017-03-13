@@ -106,8 +106,8 @@ class ChainBuilder:
     def new_block_received(self, block: 'Block'):
         """ Event handler that is called by the network layer when a block is received. """
         self._assert_thread_safety()
-        if not block.verify_difficulty() or not block.verify_merkle() or \
-                block.hash in self.block_cache:
+        if block.hash in self.block_cache or not block.verify_difficulty() or \
+                not block.verify_merkle():
             return
         self.block_cache[block.hash] = block
 

@@ -134,6 +134,8 @@ class Block:
         if self.hash != self.get_hash():
             logging.warning("block has invalid hash value")
             return False
+        if self.hash == GENESIS_BLOCK_HASH:
+            return True
         if not verify_proof_of_work(self):
             logging.warning("block does not satisfy proof of work")
             return False
@@ -141,11 +143,12 @@ class Block:
 
     def verify_prev_block(self, chain):
         """ Verify the previous block pointer points to a valid block in the given block chain. """
-        return chain.get_block_by_hash(self.prev_block_hash) is not None
+        if self.hash == GENESIS_BLOCK_HASH:
+            return True
 
     def verify_transactions(self, chain):
         """ Verify all transaction in this block are valid in the given block chain. """
-        if self.hash == GENESIS_BLOCK.hash:
+        if self.hash == GENESIS_BLOCK_HASH:
             return True
 
         mining_reward = None
@@ -172,8 +175,9 @@ class Block:
 
     def verify(self, chain):
         """ Verifies this block contains only valid data consistent with the given block chain. """
-        if self.height == 0:
-            return self.hash == GENESIS_BLOCK_HASH
+        if self.height == 0 and self.hash != GENESIS_BLOCK_HASH:
+            logging.warning("only the genesis block may have height=0")
+            return False
         return self.verify_difficulty() and self.verify_merkle() and self.verify_prev_block(chain) and self.verify_transactions(chain)
 
 from .proof_of_work import verify_proof_of_work, GENESIS_DIFFICULTY
