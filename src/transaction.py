@@ -178,6 +178,19 @@ class Transaction:
                 return False
         return True
 
+    def get_transaction_fee(self, chain: 'Blockchain'):
+        """ Computes the transaction fees this transaction provides. """
+        input_amount = 0
+        for inp in self.inputs:
+            trans = chain.get_transaction_by_hash(inp.transaction_hash)
+            if trans is None:
+                raise ValueError("Referenced transaction input could not be found.")
+            input_amount += trans.targets[inp.output_idx].amount
+        output_amount = 0
+        for outp in self.targets:
+            output_amount += outp.amount
+        return input_amount - output_amount
+
     def _verify_amounts(self, chain: 'Blockchain') -> bool:
         """
         Verifies that the receivers get less or equal money than the senders.
@@ -185,23 +198,13 @@ class Transaction:
         if not self.inputs:
             return True
 
-        input_amount = 0
-        for inp in self.inputs:
-            trans = chain.get_transaction_by_hash(inp.transaction_hash)
-            if trans is None:
-                logging.warning("Referenced transaction input could not be found.")
-                return False
-            input_amount += trans.targets[inp.output_idx].amount
-        output_amount = 0
+        if self.get_transaction_fee(chain) < 0:
+            logging.warning("Transferred amounts are larger than the inputs.")
+            return False
         for outp in self.targets:
             if outp.amount <= 0:
                 logging.warning("Transferred amounts must be positive.")
                 return False
-            output_amount += outp.amount
-
-        if input_amount < output_amount:
-            logging.warning("Transferred amounts are larger than the inputs.")
-            return False
         return True
 
     def verify(self, chain: 'Blockchain', other_trans: 'Set[Transaction]',

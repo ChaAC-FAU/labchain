@@ -141,7 +141,7 @@ class Block:
             return False
         return True
 
-    def verify_prev_block(self, chain):
+    def verify_prev_block(self, chain: 'Blockchain'):
         """ Verify the previous block pointer points to a valid block in the given block chain. """
         if self.hash == GENESIS_BLOCK_HASH:
             return True
@@ -154,7 +154,7 @@ class Block:
             return False
         return True
 
-    def verify_transactions(self, chain):
+    def verify_transactions(self, chain: 'Blockchain'):
         """ Verify all transaction in this block are valid in the given block chain. """
         if self.hash == GENESIS_BLOCK_HASH:
             return True
@@ -176,12 +176,15 @@ class Block:
             if not t.verify(chain, trans_set - {t}, prev_block):
                 return False
         if mining_reward is not None:
-            if sum(map(lambda t: t.amount, mining_reward.targets)) > chain.compute_blockreward(chain.get_block_by_hash(self.prev_block_hash)):
+            fees = sum(t.get_transaction_fee(chain) for t in self.transactions if t is not mining_reward)
+            reward = chain.compute_blockreward(chain.get_block_by_hash(self.prev_block_hash))
+            used = sum(t.amount for t in mining_reward.targets)
+            if used > fees + reward:
                 logging.warning("mining reward is too large")
                 return False
         return True
 
-    def verify(self, chain):
+    def verify(self, chain: 'Blockchain'):
         """ Verifies this block contains only valid data consistent with the given block chain. """
         if self.height == 0 and self.hash != GENESIS_BLOCK_HASH:
             logging.warning("only the genesis block may have height=0")
