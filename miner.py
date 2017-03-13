@@ -34,6 +34,47 @@ def rpc_server(port, chainbuilder):
     def get_network_info():
         return json.dumps([list(peer.peer_addr)[:2] for peer in chainbuilder.protocol.peers if peer.is_connected])
 
+    @app.route("/new-transaction", methods=['PUT'])
+    def send_transaction():
+        chainbuilder.protocol.received("transaction", flask.request.json, None, 0)
+        return b""
+
+    @app.route("/show-balance", methods=['POST'])
+    def show_balance():
+        pubkeys = {Signing.from_json_compatible(pk): i for (i, pk) in enumerate(flask.request.json)}
+        amounts = [0 for _ in pubkeys.values()]
+        for output in chainbuilder.primary_block_chain.unspent_coins.values():
+            if output.recipient_pk in pubkeys:
+                amounts[pubkeys[output.recipient_pk]] += output.amount
+
+        return json.dumps(amounts)
+
+    @app.route("/build-transaction", methods=['POST'])
+    def build_transaction():
+        sender_pks = {Signing.from_json_compatible(o): i for i, o in enumerate(flask.request.json['sender-pubkeys'])}
+        amount = flask.request.json['amount']
+
+        inputs = []
+        used_keys = []
+        for (inp, output) in chainbuilder.primary_block_chain.unspent_coins.items():
+            if output.recipient_pk in sender_pks:
+                amount -= output.amount
+                inputs.append(inp.to_json_compatible())
+                used_keys.append(sender_pks[output.recipient_pk])
+                if amount <= 0:
+                    break
+
+        if amount > 0:
+            inputs = []
+            used_keys = []
+
+        return json.dumps({
+            "inputs": inputs,
+            "remaining_amount": -amount,
+            "key_indices": used_keys,
+        })
+
+
     @app.route("/transactions", methods=['POST'])
     def get_transactions_for_key():
         key = Signing(flask.request.data)
