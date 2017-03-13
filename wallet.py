@@ -40,10 +40,10 @@ def show_balance(sess, url, pubkeys):
     resp.raise_for_status()
     return zip(pubkeys, resp.json())
 
-def build_transaction(sess, url, source_keys, targets, change_key):
+def build_transaction(sess, url, source_keys, targets, change_key, transaction_fee):
     resp = sess.post(url + "build-transaction", data=json.dumps({
             "sender-pubkeys": [k.to_json_compatible() for k in source_keys],
-            "amount": sum(t.amount for t in targets),
+            "amount": sum(t.amount for t in targets) + transaction_fee,
         }), headers={"Content-Type": "application/json"})
     resp.raise_for_status()
     resp = resp.json()
@@ -98,6 +98,8 @@ def main():
                           help="The private key(s) whose coins should be used for the transfer.")
     transfer.add_argument("--change-key", type=Signing.from_file, required=True,
                           help="The private key where any remaining coins are sent to.")
+    transfer.add_argument("--transaction-fee", type=int, default=0,
+                          help="The transaction fee you want to pay to the miner.")
     transfer.add_argument("target", nargs='*', metavar=("TARGET_KEY AMOUNT"),
                           type=parse_targets(),
                           help="The private key(s) whose coins should be used for the transfer.")
@@ -125,7 +127,7 @@ def main():
             print("Missing amount to transfer for last target key.\n", file=sys.stderr)
             parser.parse_args(["--help"])
         targets = [TransactionTarget(k, a) for k, a in zip(args.target[::2], args.target[1::2])]
-        build_transaction(s, url, args.private_key, targets, args.change_key)
+        build_transaction(s, url, args.private_key, targets, args.change_key, args.transaction_fee)
     else:
         print("You need to specify what to do.\n", file=sys.stderr)
         parser.parse_args(["--help"])
