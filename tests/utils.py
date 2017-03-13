@@ -2,8 +2,6 @@ from datetime import datetime
 
 import src.proof_of_work
 import src.block
-src.proof_of_work.verify_proof_of_work = lambda b: True
-src.block.verify_proof_of_work = src.proof_of_work.verify_proof_of_work
 
 from src.block import *
 from src.blockchain import *

@@ -6,12 +6,21 @@ def trans_test(fn):
     """ Immediately runs a test that requires a blockchain, and a transaction with private key in that blockchain. """
 
     def wrapper():
+        orig_proof = src.proof_of_work.verify_proof_of_work
+        src.proof_of_work.verify_proof_of_work = lambda b: True
+        src.block.verify_proof_of_work = src.proof_of_work.verify_proof_of_work
+
         gen_chain = Blockchain([GENESIS_BLOCK])
         assert gen_chain.verify_all()
         key = Signing.generate_private_key()
         reward_trans = Transaction([], [TransactionTarget(key, gen_chain.compute_blockreward(gen_chain.head))])
         chain = extend_blockchain(gen_chain, [reward_trans])
-        fn(chain, reward_trans)
+
+        try:
+            fn(chain, reward_trans)
+        finally:
+            src.block.verify_proof_of_work = orig_proof
+            src.proof_of_work.verify_proof_of_work = orig_proof
     return wrapper
 
 @trans_test
