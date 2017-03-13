@@ -1,5 +1,7 @@
 """ Generic functions for the cryptographic primitives used in this project. """
 
+from binascii import hexlify, unhexlify
+
 from Crypto.Signature import PKCS1_PSS
 from Crypto.Hash import SHA512
 from Crypto.PublicKey import RSA
@@ -49,6 +51,15 @@ class Signing:
             return self.rsa.exportKey()
         else:
             return self.rsa.publickey().exportKey()
+
+    def to_json_compatible(self):
+        """ Returns a JSON-serializable representation of this object. """
+        return hexlify(self.as_bytes()).decode()
+
+    @classmethod
+    def from_json_compatible(cls, obj):
+        """ Creates a new object of this class, from a JSON-serializable representation. """
+        return cls(unhexlify(obj))
 
     def __eq__(self, other: 'Signing'):
         return self.rsa.e == other.rsa.e and self.rsa.n == other.rsa.n

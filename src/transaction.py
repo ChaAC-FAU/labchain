@@ -19,15 +19,28 @@ The recipient of a transaction ('coin').
 :vartype amount: int
 """
 
-TransactionInput = namedtuple("TransactionInput", ["transaction_hash", "output_idx"])
-"""
-One transaction input (pointer to 'coin').
 
-:ivar transaction_hash: The hash of the transaction that sent money to the sender.
-:vartype transaction_hash: bytes
-:ivar output_idx: The index into `Transaction.targets` of the `transaction_hash`.
-:vartype output_idx: int
-"""
+class TransactionInput(namedtuple("TransactionInput", ["transaction_hash", "output_idx"])):
+    """
+    One transaction input (pointer to 'coin').
+
+    :ivar transaction_hash: The hash of the transaction that sent money to the sender.
+    :vartype transaction_hash: bytes
+    :ivar output_idx: The index into `Transaction.targets` of the `transaction_hash`.
+    :vartype output_idx: int
+    """
+
+    @classmethod
+    def from_json_compatible(cls, obj):
+        """ Creates a new object of this class, from a JSON-serializable representation. """
+        return cls(unhexlify(obj['transaction_hash']), int(obj['output_idx']))
+
+    def to_json_compatible(self):
+        """ Returns a JSON-serializable representation of this object. """
+        return {
+            'transaction_hash': hexlify(self.transaction_hash).decode(),
+            'output_idx': self.output_idx,
+        }
 
 
 class Transaction:
@@ -60,14 +73,11 @@ class Transaction:
         val = {}
         val['inputs'] = []
         for inp in self.inputs:
-            val['inputs'].append({
-                'transaction_hash': hexlify(inp.transaction_hash).decode(),
-                'output_idx': inp.output_idx,
-            })
+            val['inputs'].append(inp.to_json_compatible())
         val['targets'] = []
         for targ in self.targets:
             val['targets'].append({
-                'recipient_pk': hexlify(targ.recipient_pk.as_bytes()).decode(),
+                'recipient_pk': targ.recipient_pk.to_json_compatible(),
                 'amount': targ.amount,
             })
         val['signatures'] = []
@@ -82,11 +92,12 @@ class Transaction:
         """ Creates a new object of this class, from a JSON-serializable representation. """
         inputs = []
         for inp in obj['inputs']:
-            inputs.append(TransactionInput(unhexlify(inp['transaction_hash']),
-                                           int(inp['output_idx'])))
+            inputs.append(TransactionInput.from_json_compatible(inp))
         targets = []
         for targ in obj['targets']:
-            targets.append(TransactionTarget(Signing(unhexlify(targ['recipient_pk'])),
+            if targ['amount'] <= 0:
+                raise ValueError("invalid amount")
+            targets.append(TransactionTarget(Signing.from_json_compatible(targ['recipient_pk']),
                                              int(targ['amount'])))
         signatures = []
         for sig in obj['signatures']:
