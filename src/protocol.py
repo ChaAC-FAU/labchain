@@ -122,7 +122,7 @@ class PeerConnection:
             if item is None:
                 break
             logging.debug("sending %s", item['msg_type'])
-            data = json.dumps(item, 4).encode()
+            data = json.dumps(item, indent=4).encode()
             self.socket.sendall(str(len(data)).encode() + b"\n")
             self.socket.sendall(data)
             self.outgoing_msgs.task_done()
