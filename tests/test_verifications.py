@@ -1,5 +1,4 @@
 from .utils import *
-import traceback
 
 errors = 0
 
@@ -12,12 +11,7 @@ def trans_test(fn):
         key = Signing.generate_private_key()
         reward_trans = Transaction([], [TransactionTarget(key, gen_chain.compute_blockreward(gen_chain.head))])
         chain = extend_blockchain(gen_chain, [reward_trans])
-        try:
-            fn(chain, reward_trans)
-        except:
-            global errors
-            errors += 1
-            traceback.print_exc()
+        fn(chain, reward_trans)
     return wrapper
 
 @trans_test
