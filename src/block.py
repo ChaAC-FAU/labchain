@@ -96,11 +96,10 @@ class Block:
     @staticmethod
     def _int_to_bytes(val: int) -> bytes:
         """ Turns an (arbitrarily long) integer into a bytes sequence. """
-        l = val.bit_length()
-        l = (0 if l % 8 == 0 or l == 0 else 1) + l // 8
+        l = val.bit_length() + 1
         # we need to include the length in the hash in some way, otherwise e.g.
         # the numbers (0xffff, 0x00) would be encoded identically to (0xff, 0xff00)
-        return pack("<Q", l) + val.to_bytes(l, 'little')
+        return pack("<Q", l) + val.to_bytes(l, 'little', signed=True)
 
     def get_partial_hash(self):
         """
