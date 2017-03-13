@@ -43,3 +43,23 @@ def test_double_spend3(chain, reward_trans):
     key = reward_trans.targets[0].recipient_pk
     trans1.sign([key, key])
     extend_blockchain(chain, [trans1], verify_res=False)
+
+@trans_test
+def test_create_money1(chain, reward_trans):
+    key = reward_trans.targets[0].recipient_pk
+    # create a transaction where the receiver gets 1 more coin than the sender puts in
+    target = TransactionTarget(key, reward_trans.targets[0].amount + 1)
+    trans1 = Transaction([trans_as_input(reward_trans)], [target])
+    trans1.sign([key])
+    extend_blockchain(chain, [trans1], verify_res=False)
+
+@trans_test
+def test_create_money2(chain, reward_trans):
+    # create a transaction where we create money by sending a negative amount N to someone
+    # and the inputs + N to us
+    key = reward_trans.targets[0].recipient_pk
+    target1 = TransactionTarget(key, -10)
+    target2 = TransactionTarget(key, reward_trans.targets[0].amount + 10)
+    trans1 = Transaction([trans_as_input(reward_trans)], [target1, target2])
+    trans1.sign([key])
+    extend_blockchain(chain, [trans1], verify_res=False)

@@ -167,11 +167,37 @@ class Transaction:
                 return False
         return True
 
+    def _verify_amounts(self, chain: 'Blockchain') -> bool:
+        """
+        Verifies that the receivers get less or equal money than the senders.
+        """
+        if not self.inputs:
+            return True
+
+        input_amount = 0
+        for inp in self.inputs:
+            trans = chain.get_transaction_by_hash(inp.transaction_hash)
+            if trans is None:
+                logging.warning("Referenced transaction input could not be found.")
+                return False
+            input_amount += trans.targets[inp.output_idx].amount
+        output_amount = 0
+        for outp in self.targets:
+            if outp.amount <= 0:
+                logging.warning("Transferred amounts must be positive.")
+                return False
+            output_amount += outp.amount
+
+        if input_amount < output_amount:
+            logging.warning("Transferred amounts are larger than the inputs.")
+            return False
+        return True
+
     def verify(self, chain: 'Blockchain', other_trans: 'Set[Transaction]',
                prev_block: 'Block'=None) -> bool:
         """ Verifies that this transaction is completely valid. """
         return self._verify_single_spend(chain, other_trans, prev_block) and \
-               self._verify_signatures(chain)
+               self._verify_signatures(chain) and self._verify_amounts(chain)
 
 from .blockchain import Blockchain
 from .block import Block
