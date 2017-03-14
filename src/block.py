@@ -1,6 +1,6 @@
 """ Definitions of blocks, and the genesis block. """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from binascii import hexlify, unhexlify
 from struct import pack
 import json
@@ -83,6 +83,8 @@ class Block:
         difficulty = blockchain.compute_difficulty()
         if ts is None:
             ts = datetime.now()
+        if ts <= blockchain.head.time:
+            ts = blockchain.head.time + timedelta(microseconds=1)
         return Block(None, blockchain.head.hash, ts, 0, blockchain.head.height + difficulty,
                      None, difficulty, transactions, tree.get_hash())
 
@@ -184,12 +186,31 @@ class Block:
                 return False
         return True
 
+    def verify_time(self, chain: 'Blockchain'):
+        """
+        Verifies that blocks are not from far in the future, but always a bit younger
+        than the previous block.
+        """
+        if self.hash == GENESIS_BLOCK_HASH:
+            return True
+
+        if self.time - timedelta(hours=2) > datetime.now():
+            logging.warning("discarding block because it is from the far future")
+            return False
+        prev_block = chain.get_block_by_hash(self.prev_block_hash)
+        assert prev_block is not None
+        if self.time <= prev_block.time:
+            logging.warning("discarding block because it is younger than its predecessor")
+            return False
+        return True
+
     def verify(self, chain: 'Blockchain'):
         """ Verifies this block contains only valid data consistent with the given block chain. """
         if self.height == 0 and self.hash != GENESIS_BLOCK_HASH:
             logging.warning("only the genesis block may have height=0")
             return False
-        return self.verify_difficulty() and self.verify_merkle() and self.verify_prev_block(chain) and self.verify_transactions(chain)
+        return self.verify_difficulty() and self.verify_merkle() and self.verify_prev_block(chain) \
+                and self.verify_transactions(chain) and self.verify_time(chain)
 
 from .proof_of_work import verify_proof_of_work, GENESIS_DIFFICULTY
 

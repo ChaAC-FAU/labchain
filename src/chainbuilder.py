@@ -101,7 +101,8 @@ class ChainBuilder:
 
         if unc[-1].height == 0:
             chain = Blockchain(unc[::-1])
-            if chain.verify_all_transactions():
+            times_ok = all(b.verify_time(chain) for b in unc)
+            if times_ok and chain.verify_all_transactions():
                 self._new_primary_block_chain(chain)
             self.unconfirmed_block_chain = []
         else:

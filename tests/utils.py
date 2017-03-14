@@ -12,7 +12,7 @@ import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-8s %(message)s")
 
 def extend_blockchain(chain, trans:list=None, verify_res=True):
-    ts = datetime.utcfromtimestamp(len(chain.blocks))
+    ts = datetime.utcfromtimestamp(0)
     new_block = Block.create(chain, trans, ts)
     new_block.hash = new_block.get_hash()
     new_chain = Blockchain(chain.blocks + [new_block])
