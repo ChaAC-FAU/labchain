@@ -4,6 +4,7 @@ candidate for an even longer chain that it attempts to download and verify.
 """
 
 import threading
+import logging
 from typing import List, Dict, Callable, Optional
 
 from .block import GENESIS_BLOCK, GENESIS_BLOCK_HASH
@@ -72,6 +73,7 @@ class ChainBuilder:
 
     def _new_primary_block_chain(self, chain: 'Blockchain'):
         """ Does all the housekeeping that needs to be done when a new longest chain is found. """
+        logging.info("new primary block chain with height %d", len(chain.blocks))
         self._assert_thread_safety()
         self.primary_block_chain = chain
         todelete = set()
@@ -83,6 +85,8 @@ class ChainBuilder:
 
         for handler in self.chain_change_handlers:
             handler()
+
+        self.protocol.broadcast_primary_block(chain.head)
 
     def get_next_unconfirmed_block(self):
         """
@@ -102,6 +106,7 @@ class ChainBuilder:
             self.unconfirmed_block_chain = []
         else:
             self.protocol.send_block_request(unc[-1].prev_block_hash)
+            logging.debug("asking for another block %d", len(unc))
 
     def new_block_received(self, block: 'Block'):
         """ Event handler that is called by the network layer when a block is received. """
