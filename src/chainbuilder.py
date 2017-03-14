@@ -21,7 +21,7 @@ class ChainBuilder:
     :ivar unconfirmed_block_chain: A list of blocks (ordered young to old) that might lead to a
                                    new primary block chain after all predecessors are fully
                                    downloaded and verified.
-    :vartype unconfirmed_transactions: List[Block]
+    :vartype unconfirmed_block_chain: List[Block]
     :ivar block_cache: A cache of received blocks, not bound to any one specific block chain.
     :vartype block_cache: Dict[bytes, Block]
     :ivar unconfirmed_transactions: Known transactions that are not part of the primary block chain.
