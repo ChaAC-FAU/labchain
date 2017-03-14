@@ -278,7 +278,8 @@ class Protocol:
             except:
                 logging.exception("unhandled exception in event handler")
                 try:
-                    peer.close()
+                    if peer is not None:
+                        peer.close()
                 except OSError:
                     pass
 
