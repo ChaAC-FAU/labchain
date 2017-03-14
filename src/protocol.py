@@ -60,6 +60,7 @@ class PeerConnection:
         if self.socket is None:
             logging.info("connecting to peer %s", repr(self._sock_addr))
             self.socket = socket.create_connection(self._sock_addr)
+        self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.socket.sendall(HELLO_MSG)
         if self.socket.recv(len(HELLO_MSG)) != HELLO_MSG:
             return
@@ -123,10 +124,8 @@ class PeerConnection:
             item = self.outgoing_msgs.get()
             if item is None:
                 break
-            logging.debug("sending %s", item['msg_type'])
             data = json.dumps(item, indent=4).encode()
-            self.socket.sendall(str(len(data)).encode() + b"\n")
-            self.socket.sendall(data)
+            self.socket.sendall(str(len(data)).encode() + b"\n" + data)
             self.outgoing_msgs.task_done()
 
     @close_on_error
