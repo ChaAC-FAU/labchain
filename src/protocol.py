@@ -10,13 +10,15 @@ from binascii import unhexlify, hexlify
 from uuid import UUID, uuid4
 from typing import Callable, List
 
+from .block import GENESIS_BLOCK_HASH
+
 
 __all__ = ['Protocol', 'PeerConnection', 'MAX_PEERS', 'HELLO_MSG']
 
 MAX_PEERS = 10
 """ The maximum number of peers that we connect to."""
 
-HELLO_MSG = b"bl0ckch41n"
+HELLO_MSG = b"bl0ckch41n" + hexlify(GENESIS_BLOCK_HASH)[:30]
 """ The hello message two peers use to make sure they are speaking the same protocol. """
 
 # TODO: set this centrally
