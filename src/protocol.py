@@ -20,7 +20,6 @@ HELLO_MSG = b"bl0ckch41n"
 """ The hello message two peers use to make sure they are speaking the same protocol. """
 
 # TODO: set this centrally
-logging.basicConfig(level=logging.INFO)
 socket.setdefaulttimeout(30)
 
 class PeerConnection:

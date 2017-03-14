@@ -13,6 +13,9 @@ import sys
 import json
 from binascii import hexlify
 
+import logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-8s %(message)s")
+
 from src.blockchain import Blockchain
 from src.block import Block
 from src.transaction import Transaction, TransactionTarget, TransactionInput

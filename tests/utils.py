@@ -8,6 +8,8 @@ from src.blockchain import *
 from src.crypto import *
 from src.transaction import *
 
+import logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-8s %(message)s")
 
 def extend_blockchain(chain, trans:list=None, verify_res=True):
     ts = datetime.utcfromtimestamp(len(chain.blocks))

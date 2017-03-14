@@ -8,6 +8,9 @@ import argparse
 import json
 from urllib.parse import urlparse
 
+import logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-8s %(message)s")
+
 import flask
 app = flask.Flask(__name__)
 
