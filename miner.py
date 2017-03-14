@@ -17,6 +17,7 @@ from src.block import GENESIS_BLOCK
 from src.chainbuilder import ChainBuilder
 from src.mining import Miner
 from src.transaction import TransactionInput
+from src.persistence import Persistence
 
 def parse_addr_port(val):
     url = urlparse("//" + val)
@@ -29,7 +30,7 @@ def parse_addr_port(val):
     assert url.hostname is not None
     return (url.hostname, url.port)
 
-def rpc_server(port, chainbuilder):
+def rpc_server(port, chainbuilder, persist):
     @app.route("/network-info", methods=['GET'])
     def get_network_info():
         return json.dumps([list(peer.peer_addr)[:2] for peer in chainbuilder.protocol.peers if peer.is_connected])
@@ -37,6 +38,7 @@ def rpc_server(port, chainbuilder):
     @app.route("/new-transaction", methods=['PUT'])
     def send_transaction():
         chainbuilder.protocol.received("transaction", flask.request.json, None, 0)
+        # TODO: from the right thread, we want to call persist.store() here
         return b""
 
     @app.route("/show-balance", methods=['POST'])
@@ -108,6 +110,8 @@ def main():
                         help="Addresses of other P2P peers in the network.")
     parser.add_argument("--rpc-port", type=int, default=40203,
                         help="The port number where the wallet can find an RPC server.")
+    parser.add_argument("--persist-path",
+                        help="The file where data is persisted.")
 
     args = parser.parse_args()
 
@@ -121,7 +125,16 @@ def main():
     else:
         chainbuilder = ChainBuilder(proto)
 
-    rpc_server(args.rpc_port, chainbuilder)
+    if args.persist_path:
+        persist = Persistence(args.persist_path, chainbuilder)
+        try:
+            persist.load()
+        except FileNotFoundError:
+            pass
+    else:
+        persist = None
+
+    rpc_server(args.rpc_port, chainbuilder, persist)
 
 if __name__ == '__main__':
     main()
