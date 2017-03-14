@@ -41,6 +41,7 @@ class PeerConnection:
         self.socket = sock
         self.proto = proto
         self.is_connected = False
+        self._sent_uuid = str(uuid4())
         self.outgoing_msgs = Queue()
 
         Thread(target=self.run, daemon=True).start()
@@ -68,7 +69,6 @@ class PeerConnection:
 
         self.send_msg("myport", self.proto.server.server_address[1])
         self.send_msg("block", self.proto._primary_block)
-        self._sent_uuid = str(uuid4())
         self.send_msg("id", self._sent_uuid)
         self.send_peers()
 
