@@ -162,7 +162,6 @@ class Block:
             return True
 
         mining_reward = None
-        # TODO: mining fees and variable block rewards
 
         prev_block = chain.get_block_by_hash(self.prev_block_hash)
         assert prev_block is not None

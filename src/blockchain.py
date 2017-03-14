@@ -2,6 +2,8 @@
 
 __all__ = ['Blockchain']
 import logging
+from datetime import timedelta
+from fractions import Fraction
 from typing import List, Dict, Optional
 
 class Blockchain:
@@ -98,9 +100,28 @@ class Blockchain:
 
     def compute_difficulty(self, prev_block: 'Block'=None) -> int:
         """ Compute the desired difficulty for the block after `prev_block` (defaults to `head`). """
-        # TODO: dynamic calculation
-        # TODO: verify difficulty in new blocks
-        return self.head.difficulty
+        BLOCK_INTERVAL = 120
+        BLOCK_TARGET_TIMEDELTA = Fraction(int(timedelta(minutes=1).total_seconds() * 1000 * 1000))
+
+        if prev_block is None:
+            prev_block = self.head
+
+        block_idx = self.block_indices[prev_block.hash] + 1
+        if block_idx % BLOCK_INTERVAL != 0:
+            return prev_block.difficulty
+
+        duration = prev_block.time - self.blocks[block_idx - BLOCK_INTERVAL].time
+        duration = Fraction(int(duration.total_seconds() * 1000 * 1000))
+
+        prev_difficulty = Fraction(prev_block.difficulty)
+        hash_rate = prev_difficulty * BLOCK_INTERVAL / duration
+
+        new_difficulty = hash_rate * BLOCK_TARGET_TIMEDELTA / BLOCK_INTERVAL
+
+        if new_difficulty < self.blocks[0].difficulty:
+            new_difficulty = self.blocks[0].difficulty
+
+        return int(new_difficulty)
 
     def compute_blockreward(self, prev_block: 'Block') -> int:
         """ Compute the block reward that is expected for the block following `prev_block`. """

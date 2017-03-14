@@ -8,10 +8,14 @@ __all__ = ['verify_proof_of_work', 'GENESIS_DIFFICULTY', 'ProofOfWork']
 
 def verify_proof_of_work(block: 'Block'):
     """ Verify the proof of work on a block. """
-    return int.from_bytes(block.hash, byteorder='little', signed=False) > block.difficulty
+    return int.from_bytes(block.hash, byteorder='little', signed=False) > (MAX_HASH - MAX_HASH // block.difficulty)
 
-GENESIS_DIFFICULTY = MAX_HASH - (MAX_HASH // 10000)
-""" The difficulty of the genesis block. """
+GENESIS_DIFFICULTY = 1000
+"""
+The difficulty of the genesis block.
+
+Right now this is the average required number of hashes to compute one valid block.
+"""
 
 class ProofOfWork:
     """

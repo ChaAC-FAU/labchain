@@ -73,7 +73,7 @@ class ChainBuilder:
 
     def _new_primary_block_chain(self, chain: 'Blockchain'):
         """ Does all the housekeeping that needs to be done when a new longest chain is found. """
-        logging.info("new primary block chain with height %d", len(chain.blocks))
+        logging.info("new primary block chain with height %d with current difficulty %d", len(chain.blocks), chain.head.difficulty)
         self._assert_thread_safety()
         self.primary_block_chain = chain
         todelete = set()
@@ -101,8 +101,7 @@ class ChainBuilder:
 
         if unc[-1].height == 0:
             chain = Blockchain(unc[::-1])
-            times_ok = all(b.verify_time(chain) for b in unc)
-            if times_ok and chain.verify_all_transactions():
+            if chain.verify_all():
                 self._new_primary_block_chain(chain)
             self.unconfirmed_block_chain = []
         else:
