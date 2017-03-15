@@ -40,12 +40,9 @@ def start_process(func: Callable) -> Tuple[int, int]:
     pid = os.fork()
     if pid == 0: # child
         try:
-            # pytest opens some weird file descriptors...
-            import src
-            if not src._run_from_test:
-                os.close(0)
-                os.closerange(3, wx)
-                os.closerange(wx + 1, 2**16)
+            os.close(0)
+            os.closerange(3, wx)
+            os.closerange(wx + 1, 2**16)
 
             Thread(target=exit_on_pipe_close, args=(wx,), daemon=True).start()
 

@@ -2,9 +2,6 @@ from time import sleep
 import logging
 #logging.basicConfig(level=logging.DEBUG)
 
-import src
-src._run_from_test = True
-
 from src.protocol import Protocol
 from src.mining import Miner
 from src.block import GENESIS_BLOCK
