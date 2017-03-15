@@ -214,10 +214,14 @@ class Block:
         return self.verify_difficulty() and self.verify_merkle() and self.verify_prev_block(chain) \
                 and self.verify_transactions(chain) and self.verify_time(chain)
 
-from .proof_of_work import verify_proof_of_work, GENESIS_DIFFICULTY
+from .proof_of_work import verify_proof_of_work, GENESIS_DIFFICULTY, DIFFICULTY_BLOCK_INTERVAL, \
+        DIFFICULTY_TARGET_TIMEDELTA
 
-GENESIS_BLOCK = Block(b"", b"None", datetime(2017, 3, 3, 10, 35, 26, 922898),
-                      0, 0, datetime.utcnow(), GENESIS_DIFFICULTY, [], merkle_tree([]).get_hash())
+
+GENESIS_BLOCK = Block(b"",
+        "None; {} {}".format(DIFFICULTY_BLOCK_INTERVAL, DIFFICULTY_TARGET_TIMEDELTA).encode(),
+        datetime(2017, 3, 3, 10, 35, 26, 922898), 0, 0, datetime.utcnow(), GENESIS_DIFFICULTY, [],
+        merkle_tree([]).get_hash())
 GENESIS_BLOCK_HASH = GENESIS_BLOCK.get_hash()
 GENESIS_BLOCK.hash = GENESIS_BLOCK_HASH
 
