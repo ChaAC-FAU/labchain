@@ -114,7 +114,7 @@ class PeerConnection:
                 self.outgoing_msgs.get_nowait()
             self.outgoing_msgs.put(None)
             self.is_connected = False
-            self.proto.received("disconnected", None, self)
+            self.proto.received("disconnected", None, self, 3)
 
             self.socket.close()
 
