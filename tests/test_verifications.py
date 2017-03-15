@@ -10,7 +10,7 @@ def trans_test(fn):
         src.proof_of_work.verify_proof_of_work = lambda b: True
         src.block.verify_proof_of_work = src.proof_of_work.verify_proof_of_work
 
-        gen_chain = Blockchain([GENESIS_BLOCK])
+        gen_chain = Blockchain()
         assert gen_chain.verify_all()
         key = Signing.generate_private_key()
         reward_trans = Transaction([], [TransactionTarget(key, gen_chain.compute_blockreward(gen_chain.head))])

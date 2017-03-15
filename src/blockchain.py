@@ -20,25 +20,35 @@ class Blockchain:
     :vartype unspent_coins: Dict[TransactionInput, TransactionTarget]
     """
 
-    def __init__(self, blocks: 'List[Block]'):
-        self.blocks = blocks
+    def __init__(self):
+        self.blocks = [GENESIS_BLOCK]
         assert self.blocks[0].height == 0
-        self.block_indices = {block.hash: i for (i, block) in enumerate(blocks)}
-        self.unspent_coins = self._compute_unspent_coins()
+        self.block_indices = {GENESIS_BLOCK_HASH: 0}
+        assert not GENESIS_BLOCK.transactions
+        self.unspent_coins = {}
 
-    def _compute_unspent_coins(self):
-        val = {}
+    def try_append(self, block: 'Block') -> 'Optional[Blockchain]':
+        unspent_coins = self.unspent_coins.copy()
 
-        for b in self.blocks:
-            for t in b.transactions:
-                for inp in t.inputs:
-                    if inp not in val:
-                        logging.warning("Aborting computation of unspent transactions because a transaction spent an unavailable coin.")
-                        return {}
-                    del val[inp]
-                for i, target in enumerate(t.targets):
-                    val[TransactionInput(t.get_hash(), i)] = target
-        return val
+        for t in block.transactions:
+            for inp in t.inputs:
+                if inp not in unspent_coins:
+                    logging.warning("Aborting computation of unspent transactions because a transaction spent an unavailable coin.")
+                    return None
+                del unspent_coins[inp]
+            for i, target in enumerate(t.targets):
+                unspent_coins[TransactionInput(t.get_hash(), i)] = target
+
+        chain = Blockchain()
+        chain.unspent_coins = unspent_coins
+        chain.blocks = self.blocks + [block]
+        chain.block_indices = self.block_indices.copy()
+        chain.block_indices[block.hash] = len(self.blocks)
+
+        if not block.verify(chain):
+            return None
+
+        return chain
 
     def get_transaction_by_hash(self, hash_val: bytes) -> 'Optional[Transaction]':
         """ Returns a transaction from its hash, or None. """
@@ -133,5 +143,5 @@ class Blockchain:
             reward = reward // 2
         return reward
 
-from .block import Block
+from .block import Block, GENESIS_BLOCK, GENESIS_BLOCK_HASH
 from .transaction import TransactionInput, Transaction

@@ -15,8 +15,8 @@ def extend_blockchain(chain, trans:list=None, verify_res=True):
     ts = datetime.utcfromtimestamp(0)
     new_block = Block.create(chain, trans, ts)
     new_block.hash = new_block.get_hash()
-    new_chain = Blockchain(chain.blocks + [new_block])
-    assert new_chain.verify_all() == verify_res
+    new_chain = chain.try_append(new_block)
+    assert (new_chain is not None) == verify_res
     return new_chain
 
 def trans_as_input(trans, out_idx=0):

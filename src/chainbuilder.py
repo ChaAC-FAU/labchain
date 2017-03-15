@@ -14,8 +14,8 @@ from .blockchain import Blockchain
 __all__ = ['ChainBuilder']
 
 class PartialChain:
-    def __init__(self, start_block: Block):
-        self.blocks = [start_block]
+    def __init__(self):
+        self.blocks = []
         self.last_update = datetime.utcnow()
         # TODO: delete partial chains after some time
 
@@ -40,8 +40,10 @@ class ChainBuilder:
     """
 
     def __init__(self, protocol):
-        self.primary_block_chain = Blockchain([GENESIS_BLOCK])
+        self.primary_block_chain = Blockchain()
         self._block_requests = {}
+        # TODO: delete some old checkpoints
+        self._blockchain_checkpoints = { GENESIS_BLOCK_HASH: self.primary_block_chain }
 
         self.block_cache = { GENESIS_BLOCK_HASH: GENESIS_BLOCK }
         self.unconfirmed_transactions = {}
@@ -91,6 +93,19 @@ class ChainBuilder:
         for handler in self.chain_change_handlers:
             handler()
 
+        self._blockchain_checkpoints[chain.head.hash] = chain
+
+        # stop trying to build shorter block chains
+        block_requests = {}
+        for block_hash, requests in self._block_requests.items():
+            new_requests = []
+            for partial_chain in requests:
+                if partial_chain.blocks[0].height > chain.head.height:
+                    new_requests.append(partial_chain)
+            if new_requests:
+                block_requests[block_hash] = new_requests
+        self._block_requests = block_requests
+
         self.protocol.broadcast_primary_block(chain.head)
 
     def new_block_received(self, block: 'Block'):
@@ -103,10 +118,7 @@ class ChainBuilder:
 
         if block.hash not in self._block_requests:
             if block.height > self.primary_block_chain.head.height:
-                self._block_requests.setdefault(block.prev_block_hash, []).append(PartialChain(block))
-                block = self.block_cache.get(block.prev_block_hash)
-                if block is None:
-                    return
+                self._block_requests.setdefault(block.hash, []).append(PartialChain())
             else:
                 return
 
@@ -116,16 +128,21 @@ class ChainBuilder:
             for partial_chain in requests:
                 partial_chain.blocks.append(block)
                 partial_chain.last_update = datetime.utcnow()
-            if block.prev_block_hash not in self.block_cache:
+            if block.prev_block_hash not in self.block_cache or block.prev_block_hash in self._blockchain_checkpoints:
                 break
             block = self.block_cache[block.prev_block_hash]
         self._block_requests.setdefault(block.prev_block_hash, []).extend(requests)
-        if block.hash == GENESIS_BLOCK_HASH:
+
+        if block.prev_block_hash in self._blockchain_checkpoints:
             winner = self.primary_block_chain
             for partial_chain in requests:
-                chain = Blockchain(partial_chain.blocks[::-1])
-                if chain.head.height > winner.head.height and \
-                        chain.verify_all():
+                chain = self._blockchain_checkpoints[block.prev_block_hash]
+                for b in partial_chain.blocks[::-1]:
+                    next_chain = chain.try_append(b)
+                    if next_chain is None:
+                        break
+                    chain = next_chain
+                if chain.head.height > winner.head.height:
                     winner = chain
             if winner is not self.primary_block_chain:
                 self._new_primary_block_chain(winner)
