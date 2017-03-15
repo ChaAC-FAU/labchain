@@ -1,5 +1,6 @@
 """ Implementation and verification of the proof of work. """
 
+from datetime import timedelta
 from typing import Optional
 
 from .crypto import MAX_HASH
@@ -16,6 +17,11 @@ The difficulty of the genesis block.
 
 Right now this is the average required number of hashes to compute one valid block.
 """
+
+DIFFICULTY_BLOCK_INTERVAL = 30
+""" The number of blocks between difficulty changes. """
+DIFFICULTY_TARGET_TIMEDELTA = timedelta(minutes=1)
+""" The time span that it should approximately take to mine `DIFFICULTY_BLOCK_INTERVAL` blocks.  """
 
 class ProofOfWork:
     """

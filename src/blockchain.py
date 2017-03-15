@@ -2,9 +2,10 @@
 
 __all__ = ['Blockchain']
 import logging
-from datetime import timedelta
 from fractions import Fraction
 from typing import List, Dict, Optional
+
+from .proof_of_work import DIFFICULTY_BLOCK_INTERVAL, DIFFICULTY_TARGET_TIMEDELTA
 
 class Blockchain:
     """
@@ -110,24 +111,25 @@ class Blockchain:
 
     def compute_difficulty(self, prev_block: 'Block'=None) -> int:
         """ Compute the desired difficulty for the block after `prev_block` (defaults to `head`). """
-        BLOCK_INTERVAL = 120
-        BLOCK_TARGET_TIMEDELTA = Fraction(int(timedelta(minutes=1).total_seconds() * 1000 * 1000))
+        target_timedelta = Fraction(int(DIFFICULTY_TARGET_TIMEDELTA.total_seconds() * 1000 * 1000))
 
         if prev_block is None:
             prev_block = self.head
 
         block_idx = self.block_indices[prev_block.hash] + 1
-        if block_idx % BLOCK_INTERVAL != 0:
+        if block_idx % DIFFICULTY_BLOCK_INTERVAL != 0:
             return prev_block.difficulty
 
-        duration = prev_block.time - self.blocks[block_idx - BLOCK_INTERVAL].time
+        duration = prev_block.time - self.blocks[block_idx - DIFFICULTY_BLOCK_INTERVAL].time
         duration = Fraction(int(duration.total_seconds() * 1000 * 1000))
 
         prev_difficulty = Fraction(prev_block.difficulty)
-        hash_rate = prev_difficulty * BLOCK_INTERVAL / duration
+        hash_rate = prev_difficulty * DIFFICULTY_BLOCK_INTERVAL / duration
 
-        new_difficulty = hash_rate * BLOCK_TARGET_TIMEDELTA / BLOCK_INTERVAL
+        new_difficulty = hash_rate * target_timedelta / DIFFICULTY_BLOCK_INTERVAL
 
+        # the genesis difficulty was very easy, dropping below it means there was a pause
+        # in mining, so let's start with a new difficulty!
         if new_difficulty < self.blocks[0].difficulty:
             new_difficulty = self.blocks[0].difficulty
 
