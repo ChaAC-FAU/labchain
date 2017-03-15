@@ -6,11 +6,18 @@ candidate for an even longer chain that it attempts to download and verify.
 import threading
 import logging
 from typing import List, Dict, Callable, Optional
+from datetime import datetime
 
-from .block import GENESIS_BLOCK, GENESIS_BLOCK_HASH
+from .block import GENESIS_BLOCK, GENESIS_BLOCK_HASH, Block
 from .blockchain import Blockchain
 
 __all__ = ['ChainBuilder']
+
+class PartialChain:
+    def __init__(self, start_block: Block):
+        self.blocks = [start_block]
+        self.last_update = datetime.utcnow()
+        # TODO: delete partial chains after some time
 
 class ChainBuilder:
     """
@@ -19,10 +26,8 @@ class ChainBuilder:
 
     :ivar primary_block_chain: The longest fully validated block chain we know of.
     :vartype primary_block_chain: Blockchain
-    :ivar unconfirmed_block_chain: A list of blocks (ordered young to old) that might lead to a
-                                   new primary block chain after all predecessors are fully
-                                   downloaded and verified.
-    :vartype unconfirmed_block_chain: List[Block]
+    :ivar _block_requests: A dict from block hashes to lists of partial chains waiting for that block.
+    :vartype _block_requests: Dict[bytes, List[PartialChain]]
     :ivar block_cache: A cache of received blocks, not bound to any one specific block chain.
     :vartype block_cache: Dict[bytes, Block]
     :ivar unconfirmed_transactions: Known transactions that are not part of the primary block chain.
@@ -36,7 +41,7 @@ class ChainBuilder:
 
     def __init__(self, protocol):
         self.primary_block_chain = Blockchain([GENESIS_BLOCK])
-        self.unconfirmed_block_chain = []
+        self._block_requests = {}
 
         self.block_cache = { GENESIS_BLOCK_HASH: GENESIS_BLOCK }
         self.unconfirmed_transactions = {}
@@ -88,26 +93,6 @@ class ChainBuilder:
 
         self.protocol.broadcast_primary_block(chain.head)
 
-    def get_next_unconfirmed_block(self):
-        """
-        Helper function that tries to complete the unconfirmed chain,
-        possibly asking the network layer for more blocks.
-        """
-        self._assert_thread_safety()
-        unc = self.unconfirmed_block_chain
-        while unc[-1].prev_block_hash in self.block_cache:
-            unc.append(self.block_cache[unc[-1].prev_block_hash])
-
-
-        if unc[-1].height == 0:
-            chain = Blockchain(unc[::-1])
-            if chain.verify_all():
-                self._new_primary_block_chain(chain)
-            self.unconfirmed_block_chain = []
-        else:
-            self.protocol.send_block_request(unc[-1].prev_block_hash)
-            logging.debug("asking for another block %d", len(unc))
-
     def new_block_received(self, block: 'Block'):
         """ Event handler that is called by the network layer when a block is received. """
         self._assert_thread_safety()
@@ -116,17 +101,40 @@ class ChainBuilder:
             return
         self.block_cache[block.hash] = block
 
-        if self.unconfirmed_block_chain:
-            if self.unconfirmed_block_chain[-1].prev_block_hash == block.hash:
-                self.unconfirmed_block_chain.append(block)
-                self.get_next_unconfirmed_block()
-            elif self.unconfirmed_block_chain[0].hash == block.prev_block_hash:
-                self.unconfirmed_block_chain.insert(0, block)
+        if block.hash not in self._block_requests:
+            if block.height > self.primary_block_chain.head.height:
+                self._block_requests.setdefault(block.prev_block_hash, []).append(PartialChain(block))
+                block = self.block_cache.get(block.prev_block_hash)
+                if block is None:
+                    return
+            else:
+                return
 
-        if (not self.unconfirmed_block_chain or block.height > self.unconfirmed_block_chain[0].height) and \
-                block.height > self.primary_block_chain.head.height:
-            self.unconfirmed_block_chain = [block]
-            self.get_next_unconfirmed_block()
+        requests = self._block_requests[block.hash]
+        del self._block_requests[block.hash]
+        while True:
+            for partial_chain in requests:
+                partial_chain.blocks.append(block)
+                partial_chain.last_update = datetime.utcnow()
+            if block.prev_block_hash not in self.block_cache:
+                break
+            block = self.block_cache[block.prev_block_hash]
+        self._block_requests.setdefault(block.prev_block_hash, []).extend(requests)
+        if block.hash == GENESIS_BLOCK_HASH:
+            winner = self.primary_block_chain
+            for partial_chain in requests:
+                chain = Blockchain(partial_chain.blocks[::-1])
+                if chain.head.height > winner.head.height and \
+                        chain.verify_all():
+                    winner = chain
+            if winner is not self.primary_block_chain:
+                self._new_primary_block_chain(winner)
+        else:
+            # TODO: only do this if we have no pending requests for this block
+            self.protocol.send_block_request(block.prev_block_hash)
+            logging.debug("asking for another block %d", max(len(r.blocks) for r in requests))
+            self._block_requests[block.prev_block_hash] = requests
+
 
 from .protocol import Protocol
 from .block import Block
