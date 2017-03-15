@@ -151,7 +151,10 @@ class Block:
         if prev is None:
             logging.warning("Previous block is missing in the block chain.")
             return False
-        if prev.height + chain.compute_difficulty(prev) != self.height:
+        if self.difficulty != chain.compute_difficulty(prev):
+            logging.warning("Block has wrong difficulty.")
+            return False
+        if prev.height + self.difficulty != self.height:
             logging.warning("Block has wrong height.")
             return False
         return True
