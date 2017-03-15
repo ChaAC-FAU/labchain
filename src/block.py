@@ -53,7 +53,7 @@ class Block:
         val['hash'] = hexlify(self.hash).decode()
         val['prev_block_hash'] = hexlify(self.prev_block_hash).decode()
         val['merkle_root_hash'] = hexlify(self.merkle_root_hash).decode()
-        val['time'] = self.time.timestamp()
+        val['time'] = self.time.strftime("%Y-%m-%dT%H:%M:%S.%f UTC")
         val['nonce'] = self.nonce
         val['height'] = self.height
         val['difficulty'] = self.difficulty
@@ -66,10 +66,10 @@ class Block:
         from .transaction import Transaction
         return cls(unhexlify(val['hash']),
                    unhexlify(val['prev_block_hash']),
-                   datetime.fromtimestamp(float(val['time'])),
+                   datetime.strptime(val['time'], "%Y-%m-%dT%H:%M:%S.%f UTC"),
                    int(val['nonce']),
                    int(val['height']),
-                   datetime.now(),
+                   datetime.utcnow(),
                    int(val['difficulty']),
                    [Transaction.from_json_compatible(t) for t in list(val['transactions'])],
                    unhexlify(val['merkle_root_hash']))
@@ -82,7 +82,7 @@ class Block:
         tree = merkle_tree(transactions)
         difficulty = blockchain.compute_difficulty()
         if ts is None:
-            ts = datetime.now()
+            ts = datetime.utcnow()
         if ts <= blockchain.head.time:
             ts = blockchain.head.time + timedelta(microseconds=1)
         return Block(None, blockchain.head.hash, ts, 0, blockchain.head.height + difficulty,
@@ -112,7 +112,7 @@ class Block:
         hasher = get_hasher()
         hasher.update(self.prev_block_hash)
         hasher.update(self.merkle_root_hash)
-        hasher.update(pack("<d", self.time.timestamp()))
+        hasher.update(self.time.strftime("%Y-%m-%dT%H:%M:%S.%f UTC").encode())
         hasher.update(self._int_to_bytes(self.difficulty))
         return hasher
 
@@ -193,7 +193,7 @@ class Block:
         if self.hash == GENESIS_BLOCK_HASH:
             return True
 
-        if self.time - timedelta(hours=2) > datetime.now():
+        if self.time - timedelta(hours=2) > datetime.utcnow():
             logging.warning("discarding block because it is from the far future")
             return False
         prev_block = chain.get_block_by_hash(self.prev_block_hash)
@@ -214,7 +214,7 @@ class Block:
 from .proof_of_work import verify_proof_of_work, GENESIS_DIFFICULTY
 
 GENESIS_BLOCK = Block(b"", b"None", datetime(2017, 3, 3, 10, 35, 26, 922898),
-                      0, 0, datetime.now(), GENESIS_DIFFICULTY, [], merkle_tree([]).get_hash())
+                      0, 0, datetime.utcnow(), GENESIS_DIFFICULTY, [], merkle_tree([]).get_hash())
 GENESIS_BLOCK_HASH = GENESIS_BLOCK.get_hash()
 GENESIS_BLOCK.hash = GENESIS_BLOCK_HASH
 
