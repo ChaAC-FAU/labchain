@@ -36,8 +36,7 @@ class Block:
     :vartype transactions: List[Transaction]
     """
 
-    def __init__(self, hash_val, prev_block_hash, time, nonce, height, received_time, difficulty, transactions, merkle_root_hash=None):
-        self.hash = hash_val
+    def __init__(self, prev_block_hash, time, nonce, height, received_time, difficulty, transactions, merkle_root_hash=None):
         self.prev_block_hash = prev_block_hash
         self.merkle_root_hash = merkle_root_hash
         self.time = time
@@ -46,11 +45,11 @@ class Block:
         self.received_time = received_time
         self.difficulty = difficulty
         self.transactions = transactions
+        self.hash = self._get_hash()
 
     def to_json_compatible(self):
         """ Returns a JSON-serializable representation of this object. """
         val = {}
-        val['hash'] = hexlify(self.hash).decode()
         val['prev_block_hash'] = hexlify(self.prev_block_hash).decode()
         val['merkle_root_hash'] = hexlify(self.merkle_root_hash).decode()
         val['time'] = self.time.strftime("%Y-%m-%dT%H:%M:%S.%f UTC")
@@ -64,8 +63,7 @@ class Block:
     def from_json_compatible(cls, val):
         """ Create a new block from its JSON-serializable representation. """
         from .transaction import Transaction
-        return cls(unhexlify(val['hash']),
-                   unhexlify(val['prev_block_hash']),
+        return cls(unhexlify(val['prev_block_hash']),
                    datetime.strptime(val['time'], "%Y-%m-%dT%H:%M:%S.%f UTC"),
                    int(val['nonce']),
                    int(val['height']),
@@ -85,15 +83,11 @@ class Block:
             ts = datetime.utcnow()
         if ts <= blockchain.head.time:
             ts = blockchain.head.time + timedelta(microseconds=1)
-        return Block(None, blockchain.head.hash, ts, 0, blockchain.head.height + difficulty,
+        return Block(blockchain.head.hash, ts, 0, blockchain.head.height + difficulty,
                      None, difficulty, transactions, tree.get_hash())
 
     def __str__(self):
         return json.dumps(self.to_json_compatible(), indent=4)
-
-    def verify_merkle(self):
-        """ Verify that the merkle root hash is correct for the transactions in this block. """
-        return merkle_tree(self.transactions).get_hash() == self.merkle_root_hash
 
     @staticmethod
     def _int_to_bytes(val: int) -> bytes:
@@ -107,7 +101,7 @@ class Block:
         """
         Computes a hash over the contents of this block, except for the nonce. The proof of
         work can use this partial hash to efficiently try different nonces. Other uses should
-        use :any:`get_hash` to get the complete hash.
+        use `hash` to get the complete hash.
         """
         hasher = get_hasher()
         hasher.update(self.prev_block_hash)
@@ -120,22 +114,22 @@ class Block:
         """
         Finishes the hash in `hasher` with the nonce in this block. The proof of
         work can use this function to efficiently try different nonces. Other uses should
-        use :any:`get_hash` to get the complete hash in one step.
+        use `hash` to get the complete hash in one step.
         """
         hasher.update(self._int_to_bytes(self.nonce))
         return hasher.digest()
 
-    def get_hash(self):
+    def _get_hash(self):
         """ Compute the hash of the header data. This is not necessarily the received hash value for this block! """
         hasher = self.get_partial_hash()
         return self.finish_hash(hasher)
 
+    def verify_merkle(self):
+        """ Verify that the merkle root hash is correct for the transactions in this block. """
+        return merkle_tree(self.transactions).get_hash() == self.merkle_root_hash
+
     def verify_difficulty(self):
         """ Verifies that the hash value is correct and fulfills its difficulty promise. """
-        # TODO: move this some better place
-        if self.hash != self.get_hash():
-            logging.warning("block has invalid hash value")
-            return False
         if self.hash == GENESIS_BLOCK_HASH:
             return True
         if not verify_proof_of_work(self):
@@ -208,11 +202,9 @@ from .proof_of_work import verify_proof_of_work, GENESIS_DIFFICULTY, DIFFICULTY_
         DIFFICULTY_TARGET_TIMEDELTA
 
 
-GENESIS_BLOCK = Block(b"",
-        "None; {} {}".format(DIFFICULTY_BLOCK_INTERVAL, DIFFICULTY_TARGET_TIMEDELTA).encode(),
-        datetime(2017, 3, 3, 10, 35, 26, 922898), 0, 0, datetime.utcnow(), GENESIS_DIFFICULTY, [],
-        merkle_tree([]).get_hash())
-GENESIS_BLOCK_HASH = GENESIS_BLOCK.get_hash()
-GENESIS_BLOCK.hash = GENESIS_BLOCK_HASH
+GENESIS_BLOCK = Block("None; {} {}".format(DIFFICULTY_BLOCK_INTERVAL,
+        DIFFICULTY_TARGET_TIMEDELTA).encode(), datetime(2017, 3, 3, 10, 35, 26, 922898), 0, 0,
+        datetime.utcnow(), GENESIS_DIFFICULTY, [], merkle_tree([]).get_hash())
+GENESIS_BLOCK_HASH = GENESIS_BLOCK.hash
 
 from .blockchain import Blockchain

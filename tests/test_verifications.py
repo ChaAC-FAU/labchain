@@ -179,12 +179,6 @@ def test_invalid_proof_of_work(chain):
     assert chain.try_append(block) is None
 
 @block_test()
-def test_invalid_hash(chain):
-    block = Block.create(chain, [])
-    block.hash = b"invalid"
-    assert chain.try_append(block) is None
-
-@block_test()
 def test_invalid_prev_hash(chain):
     block = create_block(chain, prev_block_hash="0001020304")
     assert chain.try_append(block) is None
