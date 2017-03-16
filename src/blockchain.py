@@ -135,8 +135,11 @@ class Blockchain:
 
         return int(new_difficulty)
 
-    def compute_blockreward(self, prev_block: 'Block') -> int:
+    def compute_blockreward(self, prev_block: 'Block'=None) -> int:
         """ Compute the block reward that is expected for the block following `prev_block`. """
+        # TODO: remove prev_block param
+        if prev_block is None:
+            prev_block = self.head
         assert prev_block is not None
         reward = 1000
         l = self.block_indices[prev_block.hash]
