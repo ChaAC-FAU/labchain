@@ -81,6 +81,9 @@ class ChainBuilder:
     :ivar chain_change_handlers: Event handlers that get called when we find out about a new primary
                                  block chain.
     :vartype chain_change_handlers: List[Callable]
+    :ivar transaction_change_handlers: Event handlers that get called when we find out about a new
+                                       transaction.
+    :vartype transaction_change_handlers: List[Callable]
     :ivar protocol: The protocol instance used by this chain builder.
     :vartype protocol: Protocol
     """
@@ -96,6 +99,7 @@ class ChainBuilder:
         # TODO: we want two lists, one with known valid, unapplied transactions, the other with all known transactions (with some limit)
 
         self.chain_change_handlers = []
+        self.transaction_change_handlers = []
 
         protocol.block_receive_handlers.append(self.new_block_received)
         protocol.trans_receive_handlers.append(self.new_transaction_received)
@@ -127,6 +131,8 @@ class ChainBuilder:
                 all(input_ok(inp) for inp in transaction.inputs):
             self.unconfirmed_transactions[hash_val] = transaction
             self.protocol.broadcast_transaction(transaction)
+            for handler in self.transaction_change_handlers:
+                handler()
 
     def _new_primary_block_chain(self, chain: 'Blockchain'):
         """ Does all the housekeeping that needs to be done when a new longest chain is found. """

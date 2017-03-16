@@ -5,6 +5,7 @@ import os
 import os.path
 import tempfile
 import gzip
+import time
 from io import TextIOWrapper
 from threading import Condition, Thread
 
@@ -24,6 +25,7 @@ class Persistence:
         self._store_data = None
 
         chainbuilder.chain_change_handlers.append(self.store)
+        chainbuilder.transaction_change_handlers.append(self.store)
         self._loading = False
 
         Thread(target=self._store_thread, daemon=True).start()
@@ -52,13 +54,12 @@ class Persistence:
         if self._loading:
             return
 
-        obj = {
-            "blocks": [b.to_json_compatible() for b in self.chainbuilder.primary_block_chain.blocks[::-1]],
-            "transactions": [t.to_json_compatible() for t in self.chainbuilder.unconfirmed_transactions.values()],
-            "peers": [list(peer.peer_addr) for peer in self.proto.peers if peer.is_connected and peer.peer_addr is not None],
-        }
+        chain = self.chainbuilder.primary_block_chain
+        trans = self.chainbuilder.unconfirmed_transactions.copy()
+        peers = [list(peer.peer_addr) for peer in self.proto.peers if peer.is_connected and peer.peer_addr is not None]
+
         with self._store_cond:
-            self._store_data = obj
+            self._store_data = chain, trans, peers
             self._store_cond.notify()
 
     def _store_thread(self):
@@ -66,8 +67,14 @@ class Persistence:
             with self._store_cond:
                 while self._store_data is None:
                     self._store_cond.wait()
-                obj = self._store_data
+                chain, trans, peers = self._store_data
                 self._store_data = None
+
+            obj = {
+                "blocks": [b.to_json_compatible() for b in chain.blocks[::-1]],
+                "transactions": [t.to_json_compatible() for t in trans.values()],
+                "peers": peers,
+            }
 
             with tempfile.NamedTemporaryFile(dir=os.path.dirname(self.path), mode="wb", delete=False) as tmpf:
                 try:
@@ -78,5 +85,6 @@ class Persistence:
                 except Exception as e:
                     os.unlink(tmpf.name)
                     raise e
+            time.sleep(5)
 
 from .chainbuilder import ChainBuilder
