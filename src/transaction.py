@@ -195,10 +195,7 @@ class Transaction:
         """
         Verifies that the receivers get less or equal money than the senders.
         """
-        if not self.inputs:
-            return True
-
-        if self.get_transaction_fee(chain) < 0:
+        if self.inputs and self.get_transaction_fee(chain) < 0:
             logging.warning("Transferred amounts are larger than the inputs.")
             return False
         for outp in self.targets:
