@@ -136,7 +136,7 @@ class Transaction:
             self.signatures.append(private_key.sign(self.get_hash()))
 
     def _verify_signatures(self, chain: 'Blockchain'):
-        """ Verify that all inputs are signed and the signatures are valid. """
+        """ Verifies that all inputs are signed and the signatures are valid. """
         if len(self.signatures) != len(self.inputs):
             logging.warning("wrong number of signatures")
             return False
@@ -148,19 +148,16 @@ class Transaction:
 
     def _verify_single_sig(self, sig: bytes, inp: TransactionInput, chain: 'Blockchain') -> bool:
         """ Verifies the signature on a single input. """
-        trans = chain.get_transaction_by_hash(inp.transaction_hash)
-        if trans is None:
+        outp = chain.unspent_coins.get(inp)
+        if outp is None:
             logging.warning("Referenced transaction input could not be found.")
             return False
-        sender_pk = trans.targets[inp.output_idx].recipient_pk
-        if not sender_pk.verify_sign(self.get_hash(), sig):
+        if not outp.recipient_pk.verify_sign(self.get_hash(), sig):
             logging.warning("Transaction signature does not verify.")
             return False
         return True
 
-
-    def _verify_single_spend(self, chain: 'Blockchain', other_trans: set,
-                             prev_block: 'Block') -> bool:
+    def _verify_single_spend(self, chain: 'Blockchain', other_trans: set) -> bool:
         """ Verifies that all inputs have not been spent yet. """
         inp_set = set(self.inputs)
         if len(self.inputs) != len(inp_set):
@@ -172,42 +169,35 @@ class Transaction:
                             " same block.")
             return False
 
-        for i in self.inputs:
-            if not chain.is_coin_still_valid(i, prev_block):
-                logging.debug("Transaction refers to a coin that was already spent.")
-                return False
+        if any(i not in chain.unspent_coins for i in self.inputs):
+            logging.debug("Transaction refers to a coin that was already spent.")
+            return False
         return True
 
     def get_transaction_fee(self, chain: 'Blockchain'):
         """ Computes the transaction fees this transaction provides. """
-        input_amount = 0
-        for inp in self.inputs:
-            trans = chain.get_transaction_by_hash(inp.transaction_hash)
-            if trans is None:
-                raise ValueError("Referenced transaction input could not be found.")
-            input_amount += trans.targets[inp.output_idx].amount
-        output_amount = 0
-        for outp in self.targets:
-            output_amount += outp.amount
+        if not self.inputs:
+            return 0 # block reward transaction pays no fees
+
+        input_amount = sum(chain.unspent_coins[inp].amount for inp in self.inputs)
+        output_amount = sum(outp.amount for outp in self.targets)
         return input_amount - output_amount
 
     def _verify_amounts(self, chain: 'Blockchain') -> bool:
         """
-        Verifies that the receivers get less or equal money than the senders.
+        Verifies that transaction fees are non-negative and output amounts are positive.
         """
-        if self.inputs and self.get_transaction_fee(chain) < 0:
+        if self.get_transaction_fee(chain) < 0:
             logging.warning("Transferred amounts are larger than the inputs.")
             return False
-        for outp in self.targets:
-            if outp.amount <= 0:
-                logging.warning("Transferred amounts must be positive.")
-                return False
+        if any(outp.amount <= 0 for outp in self.targets):
+            logging.warning("Transferred amounts must be positive.")
+            return False
         return True
 
-    def verify(self, chain: 'Blockchain', other_trans: 'Set[Transaction]',
-               prev_block: 'Block'=None) -> bool:
+    def verify(self, chain: 'Blockchain', other_trans: 'Set[Transaction]') -> bool:
         """ Verifies that this transaction is completely valid. """
-        return self._verify_single_spend(chain, other_trans, prev_block) and \
+        return self._verify_single_spend(chain, other_trans) and \
                self._verify_signatures(chain) and self._verify_amounts(chain)
 
 from .blockchain import Blockchain

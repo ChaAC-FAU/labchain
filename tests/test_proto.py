@@ -50,4 +50,4 @@ def test_proto():
 
     assert not trans.verify(miner1.chainbuilder.primary_block_chain, set()), "inserted transaction should be spent and therefore invalid"
 
-    assert chain1.is_coin_still_valid(TransactionInput(trans.get_hash(), 0)), "someone spent our coins?"
+    assert TransactionInput(trans.get_hash(), 0) in chain1.unspent_coins, "someone spent our coins?"

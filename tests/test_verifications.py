@@ -10,7 +10,6 @@ def block_test(proof_of_work_res=True):
             src.block.verify_proof_of_work = src.proof_of_work.verify_proof_of_work
 
             chain = Blockchain()
-            assert chain.verify_all()
 
             try:
                 fn(chain)
@@ -26,7 +25,7 @@ def trans_test(fn):
     @block_test()
     def wrapper(gen_chain):
         key = Signing.generate_private_key()
-        reward_trans = Transaction([], [TransactionTarget(key, gen_chain.compute_blockreward(gen_chain.head))])
+        reward_trans = Transaction([], [TransactionTarget(key, gen_chain.compute_blockreward_next_block())])
         chain = extend_blockchain(gen_chain, [reward_trans])
 
         fn(chain, reward_trans)
@@ -41,7 +40,7 @@ def test_double_spend1(chain, reward_trans):
     extend_blockchain(chain, [trans1], verify_res=False)
 
     # spending the output of trans1 must work:
-    assert chain.is_coin_still_valid(trans_as_input(trans1))
+    assert trans_as_input(trans1) in chain.unspent_coins
 
 @trans_test
 def test_double_spend2(chain, reward_trans):
@@ -98,24 +97,24 @@ def test_zero_block_reward(chain, reward_trans):
 @trans_test
 def test_too_large_block_reward(chain, reward_trans):
     key = reward_trans.targets[0].recipient_pk
-    target1 = TransactionTarget(key, chain.compute_blockreward() + 1)
+    target1 = TransactionTarget(key, chain.compute_blockreward_next_block() + 1)
     trans1 = Transaction([], [target1], iv=b"1")
     extend_blockchain(chain, [trans1], verify_res=False)
 
     trans2 = new_trans(reward_trans, fee=1)
-    target2 = TransactionTarget(key, chain.compute_blockreward() + 2)
+    target2 = TransactionTarget(key, chain.compute_blockreward_next_block() + 2)
     trans3 = Transaction([], [target2], iv=b"2")
     extend_blockchain(chain, [trans2, trans3], verify_res=False)
 
 @trans_test
 def test_max_block_reward(chain, reward_trans):
     key = reward_trans.targets[0].recipient_pk
-    target1 = TransactionTarget(key, chain.compute_blockreward())
+    target1 = TransactionTarget(key, chain.compute_blockreward_next_block())
     trans1 = Transaction([], [target1], iv=b"1")
     extend_blockchain(chain, [trans1], verify_res=True)
 
     trans2 = new_trans(reward_trans, fee=1)
-    target2 = TransactionTarget(key, chain.compute_blockreward() + 1)
+    target2 = TransactionTarget(key, chain.compute_blockreward_next_block() + 1)
     trans3 = Transaction([], [target2], iv=b"2")
     extend_blockchain(chain, [trans2, trans3], verify_res=True)
 

@@ -17,8 +17,6 @@ def create_block(blockchain: 'Blockchain', unconfirmed_transactions: 'List[Trans
                                      this block.
     :param reward_pubkey: The key that should receive block rewards.
     """
-    head = blockchain.head
-
     transactions = set()
     for t in unconfirmed_transactions:
         if t.verify(blockchain, transactions):
@@ -26,9 +24,9 @@ def create_block(blockchain: 'Blockchain', unconfirmed_transactions: 'List[Trans
             transactions.add(t)
 
 
-    reward = blockchain.compute_blockreward(head)
+    reward = blockchain.compute_blockreward_next_block()
     fees = sum(t.get_transaction_fee(blockchain) for t in transactions)
-    trans = Transaction([], [TransactionTarget(reward_pubkey, reward + fees)], [], iv=head.hash)
+    trans = Transaction([], [TransactionTarget(reward_pubkey, reward + fees)], [], iv=blockchain.head.hash)
     transactions.add(trans)
 
     return Block.create(blockchain, list(transactions))

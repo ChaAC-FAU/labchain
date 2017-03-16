@@ -80,7 +80,7 @@ class Block:
         Create a new block for a certain blockchain, containing certain transactions.
         """
         tree = merkle_tree(transactions)
-        difficulty = blockchain.compute_difficulty()
+        difficulty = blockchain.compute_difficulty_next_block()
         if ts is None:
             ts = datetime.utcnow()
         if ts <= blockchain.head.time:
@@ -131,7 +131,7 @@ class Block:
         return self.finish_hash(hasher)
 
     def verify_difficulty(self):
-        """ Verify that the hash value is correct and fulfills its difficulty promise. """
+        """ Verifies that the hash value is correct and fulfills its difficulty promise. """
         # TODO: move this some better place
         if self.hash != self.get_hash():
             logging.warning("block has invalid hash value")
@@ -144,30 +144,21 @@ class Block:
         return True
 
     def verify_prev_block(self, chain: 'Blockchain'):
-        """ Verify the previous block pointer points to a valid block in the given block chain. """
-        if self.hash == GENESIS_BLOCK_HASH:
-            return True
-        prev = chain.get_block_by_hash(self.prev_block_hash)
-        if prev is None:
-            logging.warning("Previous block is missing in the block chain.")
+        """ Verifies that the previous block pointer points to the head of the given block chain and difficulty and height are correct. """
+        if chain.head.hash != self.prev_block_hash:
+            logging.warning("Previous block is not head of the block chain.")
             return False
-        if self.difficulty != chain.compute_difficulty(prev):
+        if self.difficulty != chain.compute_difficulty_next_block():
             logging.warning("Block has wrong difficulty.")
             return False
-        if prev.height + self.difficulty != self.height:
+        if chain.head.height + self.difficulty != self.height:
             logging.warning("Block has wrong height.")
             return False
         return True
 
     def verify_transactions(self, chain: 'Blockchain'):
-        """ Verify all transaction in this block are valid in the given block chain. """
-        if self.hash == GENESIS_BLOCK_HASH:
-            return True
-
+        """ Verifies that all transaction in this block are valid in the given block chain. """
         mining_reward = None
-
-        prev_block = chain.get_block_by_hash(self.prev_block_hash)
-        assert prev_block is not None
 
         trans_set = set(self.transactions)
         for t in self.transactions:
@@ -177,11 +168,11 @@ class Block:
                     return False
                 mining_reward = t
 
-            if not t.verify(chain, trans_set - {t}, prev_block):
+            if not t.verify(chain, trans_set - {t}):
                 return False
         if mining_reward is not None:
-            fees = sum(t.get_transaction_fee(chain) for t in self.transactions if t is not mining_reward)
-            reward = chain.compute_blockreward(chain.get_block_by_hash(self.prev_block_hash))
+            fees = sum(t.get_transaction_fee(chain) for t in self.transactions)
+            reward = chain.compute_blockreward_next_block()
             used = sum(t.amount for t in mining_reward.targets)
             if used > fees + reward:
                 logging.warning("mining reward is too large")
@@ -190,25 +181,24 @@ class Block:
 
     def verify_time(self, chain: 'Blockchain'):
         """
-        Verifies that blocks are not from far in the future, but always a bit younger
-        than the previous block.
+        Verifies that blocks are not from far in the future, but a bit younger
+        than the head of `chain`.
         """
-        if self.hash == GENESIS_BLOCK_HASH:
-            return True
-
         if self.time - timedelta(hours=2) > datetime.utcnow():
             logging.warning("discarding block because it is from the far future")
             return False
-        prev_block = chain.get_block_by_hash(self.prev_block_hash)
-        assert prev_block is not None
-        if self.time <= prev_block.time:
+        if self.time <= chain.head.time:
             logging.warning("discarding block because it is younger than its predecessor")
             return False
         return True
 
     def verify(self, chain: 'Blockchain'):
-        """ Verifies this block contains only valid data consistent with the given block chain. """
-        if self.height == 0 and self.hash != GENESIS_BLOCK_HASH:
+        """
+        Verifies that this block contains only valid data and can be applied on top of the block
+        chain `chain`.
+        """
+        assert self.hash not in chain.block_indices
+        if self.height == 0:
             logging.warning("only the genesis block may have height=0")
             return False
         return self.verify_difficulty() and self.verify_merkle() and self.verify_prev_block(chain) \

@@ -118,8 +118,13 @@ class ChainBuilder:
         """ Event handler that is called by the network layer when a transaction is received. """
         self._assert_thread_safety()
         hash_val = transaction.get_hash()
-        if self.primary_block_chain.get_transaction_by_hash(hash_val) is None and \
-                hash_val not in self.unconfirmed_transactions:
+
+        def input_ok(inp):
+            return inp in self.primary_block_chain.unspent_coins or \
+                    inp.transaction_hash in self.unconfirmed_transactions
+
+        if hash_val not in self.unconfirmed_transactions and \
+                all(input_ok(inp) for inp in transaction.inputs):
             self.unconfirmed_transactions[hash_val] = transaction
             self.protocol.broadcast_transaction(transaction)
 
@@ -140,6 +145,8 @@ class ChainBuilder:
 
         self._retry_expired_requests()
         self._clean_block_requests()
+
+        # TODO: restore valid transactions from the old primary block chain
 
         self.protocol.broadcast_primary_block(chain.head)
 
