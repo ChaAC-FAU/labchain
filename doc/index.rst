@@ -6,6 +6,7 @@
 Welcome to blockchain's documentation!
 ======================================
 
+This project is a completely new blockchain-based coin, with P2P networking, a consensus mechanism and a wallet interface. The goal of the project is to provide a framework that is easy to modify for people who want to develop proof-of-concepts for blockchain-based technology.
 
 Executables
 ***********
