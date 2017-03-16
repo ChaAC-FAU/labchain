@@ -7,6 +7,12 @@ from typing import List, Dict, Optional
 
 from .proof_of_work import DIFFICULTY_BLOCK_INTERVAL, DIFFICULTY_TARGET_TIMEDELTA
 
+GENESIS_REWARD = 1000
+""" The reward that is available for the first `REWARD_HALF_LIFE` blocks, starting with the genesis block. """
+
+REWARD_HALF_LIFE = 10000
+""" The number of blocks until the block reward is halved. """
+
 class Blockchain:
     """
     A block chain: a ordered list of valid blocks.
@@ -95,11 +101,9 @@ class Blockchain:
 
     def compute_blockreward_next_block(self) -> int:
         """ Compute the block reward that is expected for the block following this chain's `head`. """
-        reward = 1000
-        l = len(self.blocks) - 1
-        while l > 0 and reward > 0:
-            l = l - 10000
-            reward = reward // 2
+        half_lives = len(self.blocks) // REWARD_HALF_LIFE
+        reward = GENESIS_REWARD // (2 ** half_lives)
+
         return reward
 
 from .block import Block, GENESIS_BLOCK, GENESIS_BLOCK_HASH
