@@ -3,3 +3,6 @@ __pycache__
 /doc/_autosummary/
 /doc/_build/
 .cache
+*.wallet
+*.pem
+*.json.gz
