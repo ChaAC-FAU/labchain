@@ -36,6 +36,7 @@ Source Code Documentation
     src.proof_of_work
     src.protocol
     src.transaction
+    src.persistence
 
 Tests
 *****
