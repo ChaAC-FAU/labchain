@@ -4,6 +4,8 @@ import json
 import os
 import os.path
 import tempfile
+import gzip
+from io import TextIOWrapper
 from threading import Condition, Thread
 
 
@@ -30,8 +32,8 @@ class Persistence:
         """ Loads data from disk. """
         self._loading = True
         try:
-            with open(self.path, "r") as f:
-                obj = json.load(f)
+            with gzip.open(self.path, "r") as f:
+                obj = json.load(TextIOWrapper(f))
             for block in obj['blocks']:
                 self.proto.received("block", block, None, 2)
             for trans in obj['transactions']:
@@ -67,13 +69,14 @@ class Persistence:
                 obj = self._store_data
                 self._store_data = None
 
-            with tempfile.NamedTemporaryFile(dir=os.path.dirname(self.path), delete=False, mode="w") as f:
+            with tempfile.NamedTemporaryFile(dir=os.path.dirname(self.path), mode="wb", delete=False) as tmpf:
                 try:
-                    json.dump(obj, f, indent=4)
-                    f.close()
-                    os.rename(f.name, self.path)
+                    with TextIOWrapper(gzip.open(tmpf, mode="w")) as f:
+                        json.dump(obj, f, indent=4)
+                    tmpf.close()
+                    os.rename(tmpf.name, self.path)
                 except Exception as e:
-                    os.unlink(f.name)
+                    os.unlink(tmpf.name)
                     raise e
 
 from .chainbuilder import ChainBuilder
