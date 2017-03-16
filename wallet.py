@@ -8,10 +8,10 @@ miner.
 __all__ = []
 
 import argparse
-import requests
 import sys
-import json
 from binascii import hexlify
+from io import IOBase
+from typing import List, Union, Callable, Tuple, Optional
 
 import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-8s %(message)s")
@@ -20,49 +20,13 @@ from src.block import Block
 from src.blockchain import Blockchain
 from src.transaction import Transaction, TransactionTarget, TransactionInput
 from src.crypto import Signing
+from src.rpc_client import RPCClient
 
-def send_transaction(sess, url, transaction):
-    resp = sess.put(url + 'new-transaction', data=json.dumps(transaction.to_json_compatible()),
-                    headers={"Content-Type": "application/json"})
-    resp.raise_for_status()
-
-def network_info(sess, url):
-    resp = sess.get(url + 'network-info')
-    resp.raise_for_status()
-    return resp.json()
-
-def get_transactions(sess, url, pubkey):
-    resp = sess.post(url + 'transactions', data=pubkey.as_bytes(),
-                     headers={"Content-Type": "application/json"})
-    resp.raise_for_status()
-    return [Transaction.from_json_compatible(t) for t in resp.json()]
-
-def show_balance(sess, url, pubkeys):
-    resp = sess.post(url + "show-balance", data=json.dumps([pk.to_json_compatible() for pk in pubkeys]),
-                     headers={"Content-Type": "application/json"})
-    resp.raise_for_status()
-    return zip(pubkeys, resp.json())
-
-def build_transaction(sess, url, source_keys, targets, change_key, transaction_fee):
-    resp = sess.post(url + "build-transaction", data=json.dumps({
-            "sender-pubkeys": [k.to_json_compatible() for k in source_keys],
-            "amount": sum(t.amount for t in targets) + transaction_fee,
-        }), headers={"Content-Type": "application/json"})
-    resp.raise_for_status()
-    resp = resp.json()
-    remaining = resp['remaining_amount']
-    if remaining < 0:
-        print("You do not have sufficient funds for this transaction. ({} missing)".format(-remaining), file=sys.stderr)
-        sys.exit(2)
-    elif remaining > 0:
-        targets = targets + [TransactionTarget(change_key, remaining)]
-
-    inputs = [TransactionInput.from_json_compatible(i) for i in resp['inputs']]
-    trans = Transaction(inputs, targets)
-    trans.sign([source_keys[idx] for idx in resp['key_indices']])
-    send_transaction(sess, url, trans)
-
-def parse_targets():
+def parse_targets() -> Callable[[str], Union[Signing, int]]:
+    """
+    Parses transaction targets from the command line: the first value is a path to a key, the
+    second an amount and so on.
+    """
     start = True
     def parse(val):
         nonlocal start
@@ -74,13 +38,20 @@ def parse_targets():
         return val
     return parse
 
-def private_signing(path):
+def private_signing(path: str) -> Signing:
+    """ Parses a path to a private key from the command line. """
     val = Signing.from_file(path)
     if not val.has_private:
         raise ValueError("The specified key is not a private key.")
     return val
 
-def wallet_file(path):
+def wallet_file(path: str) -> Tuple[List[Signing], str]:
+    """
+    Parses the wallet from the command line.
+
+    Returns a tuple with a list of keys from the wallet and the path to the wallet (for write
+    operations).
+    """
     try:
         with open(path, "rb") as f:
             contents = f.read()
@@ -127,10 +98,47 @@ def main():
                           help="The private key(s) whose coins should be used for the transfer.")
     args = parser.parse_args()
 
-    url = "http://localhost:{}/".format(args.miner_port)
-    s = requests.session()
+    rpc = RPCClient(args.miner_port)
 
-    def get_keys(keys):
+    def show_transactions(keys: List[Signing]):
+        for key in keys:
+            for trans in rpc.get_transactions(key):
+                print(trans.to_json_compatible())
+            print()
+
+    def create_address(wallet_keys: List[Signing], wallet_path: str, output_files: List[IOBase]):
+        keys = [Signing.generate_private_key() for _ in output_files]
+        Signing.write_many_private(wallet_path, wallet_keys + keys)
+        for fp, key in zip(output_files, keys):
+            fp.write(key.as_bytes())
+            fp.close()
+
+    def show_balance(keys: List[Signing]):
+        total = 0
+        for pubkey, balance in rpc.show_balance(keys):
+            print("{}: {}".format(hexlify(pubkey.as_bytes()), balance))
+            total += balance
+        print()
+        print("total: {}".format(total))
+
+    def network_info():
+        for k, v in rpc.network_info():
+            print("{}\t{}".format(k, v))
+
+    def transfer(targets: List[TransactionTarget], change_key: Optional[Signing],
+                 wallet_keys: List[Signing], wallet_path: str, priv_keys: List[Signing]):
+        if not change_key:
+            change_key = Signing.generate_private_key()
+            Signing.write_many_private(wallet_path, wallet_keys + [change_key])
+
+        trans = rpc.build_transaction(priv_keys, targets, change_key, args.transaction_fee)
+        rpc.send_transaction(trans)
+
+
+    def get_keys(keys: List[Signing]) -> List[Signing]:
+        """
+        Returns a combined list of keys from the `keys` and the wallet. Shows an error if empty.
+        """
         all_keys = keys + args.wallet[0]
         if not all_keys:
             print("missing key or wallet", file=sys.stderr)
@@ -138,42 +146,26 @@ def main():
         return all_keys
 
     if args.command == 'show-transactions':
-        for key in get_keys(args.key):
-            for trans in get_transactions(s, url, key):
-                print(trans.to_json_compatible())
-            print()
+        show_transactions(get_keys(args.key))
     elif args.command == "create-address":
         if not args.wallet[1]:
             print("no wallet specified", file=sys.stderr)
             parser.parse_args(["--help"])
 
-        keys = [Signing.generate_private_key() for _ in args.file]
-        Signing.write_many_private(args.wallet[1], args.wallet[0] + keys)
-        for fp, key in zip(args.file, keys):
-            fp.write(key.as_bytes())
-            fp.close()
+        create_address(*args.wallet, args.file)
     elif args.command == 'show-balance':
-        total = 0
-        for pubkey, balance in show_balance(s, url, get_keys(args.key)):
-            print("{}: {}".format(hexlify(pubkey.as_bytes()), balance))
-            total += balance
-        print()
-        print("total: {}".format(total))
+        show_balance(get_keys(args.key))
     elif args.command == 'show-network':
-        for [k, v] in network_info(s, url):
-            print("{}\t{}".format(k, v))
+        network_info()
     elif args.command == 'transfer':
         if len(args.target) % 2:
             print("Missing amount to transfer for last target key.\n", file=sys.stderr)
             parser.parse_args(["--help"])
+        if not args.change_key and not args.wallet[0]:
+            print("You need to specify either --wallet or --change-key.\n", file=sys.stderr)
+            parser.parse_args(["--help"])
         targets = [TransactionTarget(k, a) for k, a in zip(args.target[::2], args.target[1::2])]
-        change_key = args.change_key
-        if not change_key:
-            get_keys([]) # shows error if no wallet
-            change_key = Signing.generate_private_key()
-            Signing.write_many_private(args.wallet[1], args.wallet[0] + [change_key])
-
-        build_transaction(s, url, get_keys(args.private_key), targets, change_key, args.transaction_fee)
+        transfer(targets, args.change_key, *args.wallet, get_keys(args.private_key))
     else:
         print("You need to specify what to do.\n", file=sys.stderr)
         parser.parse_args(["--help"])

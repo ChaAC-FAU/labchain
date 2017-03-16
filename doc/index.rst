@@ -37,6 +37,8 @@ Source Code Documentation
     src.protocol
     src.transaction
     src.persistence
+    src.rpc_client
+    src.rpc_server
 
 Tests
 *****
