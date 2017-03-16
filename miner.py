@@ -85,13 +85,14 @@ def rpc_server(port, chainbuilder, persist):
         key = Signing(flask.request.data)
         transactions = set()
         outputs = set()
-        for b in chainbuilder.primary_block_chain.blocks:
+        chain = chainbuilder.primary_block_chain
+        for b in chain.blocks:
             for t in b.transactions:
                 for i, target in enumerate(t.targets):
                     if target.recipient_pk == key:
                         transactions.add(t)
                         outputs.add(TransactionInput(t.get_hash(), i))
-        for b in chainbuilder.primary_block_chain.blocks:
+        for b in chain.blocks:
             for t in b.transactions:
                 for inp in t.inputs:
                     if inp in outputs:
