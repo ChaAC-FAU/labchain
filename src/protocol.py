@@ -258,11 +258,18 @@ class Protocol:
 
     def broadcast_primary_block(self, block: 'Block'):
         """ Notifies all peers and local listeners of a new primary block. """
+        obj = block.to_json_compatible()
+
+        if self._primary_block == obj:
+            logging.debug("not broadcasting block again")
+            return
+
         logging.debug("* > block %s", hexlify(block.hash))
-        self._primary_block = block.to_json_compatible()
+        self._primary_block = obj
+
         for peer in self.peers:
-            peer.send_msg("block", self._primary_block)
-        self.received('block', self._primary_block, None, 0)
+            peer.send_msg("block", obj)
+        self.received('block', obj, None, 0)
 
     def broadcast_transaction(self, trans: 'Transaction'):
         """ Notifies all peers and local listeners of a new transaction. """
