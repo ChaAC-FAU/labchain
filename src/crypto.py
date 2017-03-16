@@ -1,6 +1,10 @@
 """ Generic functions for the cryptographic primitives used in this project. """
 
+import os
+import os.path
+import tempfile
 from binascii import hexlify, unhexlify
+from typing import Iterator, Iterable
 
 from Crypto.Signature import PKCS1_PSS
 from Crypto.Hash import SHA512
@@ -80,3 +84,37 @@ class Signing:
         sign things.
         """
         return self.rsa.has_private()
+
+    @classmethod
+    def read_many_private(cls, file_contents: bytes) -> 'Iterator[Signing]':
+        """ Reads many private keys from the (binary) contents of a file written with `write_many_private`. """
+        end = b"-----END RSA PRIVATE KEY-----"
+        for key in file_contents.strip().split(end):
+            if not key:
+                continue
+
+            key = key.lstrip() + end
+            yield cls(key)
+
+    @staticmethod
+    def write_many_private(path: str, keys: 'Iterable[Signing]'):
+        """ Writes the private keys in `keys` to the file at `path`. """
+        dirname = os.path.dirname(path) or "."
+        with tempfile.NamedTemporaryFile("wb", delete=False, dir=dirname) as fp:
+            try:
+                for key in keys:
+                    fp.write(key.as_bytes(include_priv=True) + b"\n")
+
+                fp.flush()
+                os.fsync(fp.fileno())
+
+                os.rename(fp.name, path)
+            except Exception as e:
+                os.unlink(fp.name)
+                raise e
+
+        fd = os.open(dirname, os.O_DIRECTORY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
