@@ -101,8 +101,8 @@ class Miner:
         self._cur_miner_pipes = None
         self.reward_pubkey = reward_pubkey
         self._stopped = False
+        self._started = False
         self._miner_cond = Condition()
-        Thread(target=self._miner_thread, daemon=True).start()
 
     def _miner_thread(self):
         def wait_for_miner():
@@ -138,10 +138,14 @@ class Miner:
 
     def start_mining(self):
         """ Start mining on a new block. """
-        chain = self.chainbuilder.primary_block_chain
-        transactions = self.chainbuilder.unconfirmed_transactions.values()
-        block = mining_strategy.create_block(chain, transactions, self.reward_pubkey)
         with self._miner_cond:
+            if not self._started:
+                Thread(target=self._miner_thread, daemon=True).start()
+            self._started = True
+            # TODO: accessing the chainbuilder is problematic if start_mining was not called from the protocol's main thread
+            chain = self.chainbuilder.primary_block_chain
+            transactions = self.chainbuilder.unconfirmed_transactions.values()
+            block = mining_strategy.create_block(chain, transactions, self.reward_pubkey)
             self._stop_mining_for_now()
             self._cur_miner_pipes = []
 
@@ -153,7 +157,7 @@ class Miner:
             self._miner_cond.notify()
 
     def _chain_changed(self):
-        if not self._stopped:
+        if not self._stopped and self._started:
             self.start_mining()
 
     def _stop_mining_for_now(self):
@@ -164,12 +168,13 @@ class Miner:
                 pass
         self._cur_miner_pids = []
 
-    def stop_mining(self):
+    def shutdown(self):
         """ Stop all mining. """
         self._stopped = True
         with self._miner_cond:
             self._stop_mining_for_now()
             self._miner_cond.notify()
+        self.chainbuilder.chain_change_handlers.remove(self._chain_changed)
 
 from .protocol import Protocol
 from .chainbuilder import ChainBuilder

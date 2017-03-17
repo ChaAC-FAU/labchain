@@ -38,8 +38,8 @@ def test_proto():
         print("Length of chain of miner 1: {}".format(chain_len1))
         print("Length of chain of miner 2: {}".format(chain_len2))
     finally:
-        miner1.stop_mining()
-        miner2.stop_mining()
+        miner1.shutdown()
+        miner2.shutdown()
 
     assert max(chain_len1, chain_len2) * 90 // 100 < min(chain_len1, chain_len2), "chain lengths are VERY different"
 
