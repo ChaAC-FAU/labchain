@@ -8,7 +8,9 @@ import gzip
 import time
 from io import TextIOWrapper
 from threading import Condition, Thread
+from datetime import timedelta
 
+PERSISTENCE_MIN_INTERVAL = timedelta(seconds=5)
 
 class Persistence:
     """
@@ -85,6 +87,6 @@ class Persistence:
                 except Exception as e:
                     os.unlink(tmpf.name)
                     raise e
-            time.sleep(5)
+            time.sleep(PERSISTENCE_MIN_INTERVAL.total_seconds())
 
 from .chainbuilder import ChainBuilder
