@@ -10,7 +10,7 @@ from .crypto import Signing
 from .transaction import TransactionInput
 
 def rpc_server(port: int, chainbuilder: ChainBuilder, persist: Persistence):
-    """ Runs the RPC server. """
+    """ Runs the RPC server (forever). """
 
     app = flask.Flask(__name__)
 

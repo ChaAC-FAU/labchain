@@ -15,7 +15,10 @@ REWARD_HALF_LIFE = 10000
 
 class Blockchain:
     """
-    A block chain: a ordered list of valid blocks.
+    A block chain: a ordered, immutable list of valid blocks. The only ways to create a blockchain
+    instance are the constructor, which will create a block chain containing only the genesis block,
+    and the `try_append` method which creates a new block chain only if the given block is valid on
+    top of `self`.
 
     :ivar blocks: The blocks in this chain, oldest first.
     :vartype blocks: List[Block]

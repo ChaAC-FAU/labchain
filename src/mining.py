@@ -79,7 +79,19 @@ def wait_for_result(pipes: List[int], cls: type):
 
 class Miner:
     """
-    Management of a background thread that mines for new blocks.
+    Management of a background process that mines for new blocks.
+
+    The miner process is forked for each new proof of work that needs to be performed. The
+    completed block is sent back JSON-serialized through a pipe that is opened for that purpose.
+    When that pipe is closed by the parent process prematurely, the proof of work process knows it
+    is no longer needed and exits.
+
+    To start the mining process, `start_mining` needs to be called once. After that, the mining
+    will happen automatically, with the mined block switching every time the chainbuilder finds a
+    new primary block chain.
+
+    To stop the mining process, there is the `shutdown` method. Once stopped, mining cannot be
+    resumed (except by creating a new `Miner`).
 
     :ivar proto: The protocol where newly mined blocks will be sent to.
     :vartype proto: Protocol

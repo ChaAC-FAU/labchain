@@ -17,7 +17,8 @@ def get_hasher():
     return SHA512.new()
 
 
-MAX_HASH = (1 << 512) - 1 # the largest possible hash value
+MAX_HASH = (1 << 512) - 1
+""" The largest possible hash value, when interpreted as an unsigned int. """
 
 
 class Signing:

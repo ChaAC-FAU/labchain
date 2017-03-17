@@ -1,6 +1,30 @@
 """
-The chain builder maintains the current longest confirmed (primary) block chain as well as one
-candidate for an even longer chain that it attempts to download and verify.
+The chain builder maintains the current longest confirmed (primary) block chain as well as
+only partially downloaded longer chains that might become the new primary block chain once
+completed and verified. Also maintains a list of (unconfirmed) transactions that are valid
+but not yet part of the primary block chain, or valid once another unconfirmed transaction
+becomes valid.
+
+Received blocks that cannot be shown to be invalid on *any* block chain are stored in a block
+cache (from which for the moment they are never evicted), so that they do not need to be requested
+from other peers over and over again.
+
+
+For the process of building new primary block chains, block requests are used. These are maintained
+in a dict indexed by the hash of the next block that is required for the block request to make
+progress. Each block request stores a list of partial block chains that all depend on the same
+next block, and the time of the last download request, so that these requests can be retried and
+at some point aborted when no progress is made.
+
+While not strictly necessary, the block requests are also used when the block can be found in the
+block cache. In that case they are immediately fulfilled until the block chains can be built or a
+block is missing in the cache, which then will be requested from the peers.
+
+Partial chains are completed once their next block is the head of a so called `checkpoint`. These
+checkpoints are snapshots of the primary block chain at various points in its history. For a chain
+of length `N`, the number of checkpoints is always kept between `2*log_2(N)` and `log_2(N)`, with
+most checkpoints being relatively recent. There also is always one checkpoint with only the genesis
+block.
 """
 
 import threading
@@ -67,8 +91,11 @@ class BlockRequest:
 
 class ChainBuilder:
     """
-    Maintains the current longest confirmed (primary) block chain as well as one candidate for an
-    even longer chain that it attempts to download and verify.
+    The chain builder maintains the current longest confirmed (primary) block chain as well as
+    only partially downloaded longer chains that might become the new primary block chain once
+    completed and verified. Also maintains a list of (unconfirmed) transactions that are valid
+    but not yet part of the primary block chain, or valid once another unconfirmed transaction
+    becomes valid.
 
     :ivar primary_block_chain: The longest fully validated block chain we know of.
     :vartype primary_block_chain: Blockchain

@@ -1,4 +1,20 @@
-""" Implementation of the P2P protocol. """
+"""
+Implementation of the P2P protocol.
+
+The protocol is text-based and works over TCP. Once a TCP connection is established, there is no
+difference between server and client. Both sides start by sending a fixed `HELLO_MSG` to make sure
+they speak the same protocol. After that, they can send any number of messages.
+
+Messages start with a length (ending with a new-line), followed by the JSON-encoded contents of
+the message of that length. On the top level, the sent JSON values are always dicts, with a
+'msg_type' key indicating the kind of message and a 'msg_param' key containing a type-specific
+payload.
+
+To make sure that the peer acting as a TCP server in a connection knows how to reach the TCP client,
+there is a 'myport' message containing the TCP port where a peer listens for incoming connections.
+
+For other message types, you can look at the `received_*` methods of `Protocol`.
+"""
 
 import json
 import socket
@@ -20,7 +36,11 @@ MAX_PEERS = 10
 """ The maximum number of peers that we connect to."""
 
 HELLO_MSG = b"bl0ckch41n" + hexlify(GENESIS_BLOCK_HASH)[:30] + b"\n"
-""" The hello message two peers use to make sure they are speaking the same protocol. """
+"""
+The hello message two peers use to make sure they are speaking the same protocol. Contains the
+genesis block hash, so that communication of incompatible forks of the program is less likely to
+succeed.
+"""
 
 SOCKET_TIMEOUT = 30
 """ The socket timeout for P2P connections. """
@@ -28,6 +48,7 @@ SOCKET_TIMEOUT = 30
 class PeerConnection:
     """
     Handles the low-level socket connection to one other peer.
+
     :ivar peer_addr: The self-reported address one can use to connect to this peer.
     :ivar param: The self-reported address one can use to connect to this peer.
     :ivar _sock_addr: The address our socket is or will be connected to.
@@ -176,9 +197,7 @@ class PeerConnection:
 
 
 class SocketServer(socketserver.TCPServer):
-    """
-    A TCP socketserver that calls does not close the connections on its own.
-    """
+    """ A TCP socketserver that does not close connections when the handler returns. """
 
     allow_reuse_address = True
     """ Make sure the server can be restarted without delays. """
@@ -211,6 +230,9 @@ class Protocol:
     """
 
     _dummy_peer = namedtuple("DummyPeerConnection", ["peer_addr"])("self")
+    """
+    A dummy peer for messages that are injected by this program, not received from a remote peer.
+    """
 
     def __init__(self, bootstrap_peers: 'List[tuple]',
                  primary_block: 'Block', listen_port: int=0, listen_addr: str=""):

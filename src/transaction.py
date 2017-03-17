@@ -45,7 +45,9 @@ class TransactionInput(namedtuple("TransactionInput", ["transaction_hash", "outp
 
 class Transaction:
     """
-    A transaction.
+    A transaction as it was received from the network or a block. To check that this transaction is
+    valid on top of a block chain and in combination with a set of different transactions (from the
+    same block), you can call the `verify` method.
 
     :ivar inputs: The inputs of this transaction. Empty in the case of block reward transactions.
     :vartype inputs: List[TransactionInput]

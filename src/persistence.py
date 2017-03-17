@@ -16,8 +16,13 @@ class Persistence:
     """
     Functionality for storing and retrieving the miner state on disk.
 
-    :param path: The path to the storage location. """#TODO
-    """:param chainbuilder: The chainbuilder to persist.
+    Right now, this class stores the connected peers, the blocks in the primary block chain and the
+    unconfirmed transactions in a gzip-compressed file in JSON format. These are dumped whenever
+    the primary block chain changes or a new unconfirmed transaction is received, but at most every
+    `PERSISTENCE_MIN_INTERVAL` time steps.
+
+    :param path: The path to the storage location.
+    :param chainbuilder: The chainbuilder to persist.
     """
     def __init__(self, path: str, chainbuilder: 'ChainBuilder'):
         self.chainbuilder = chainbuilder

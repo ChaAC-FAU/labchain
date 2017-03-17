@@ -14,7 +14,10 @@ __all__ = ['Block', 'GENESIS_BLOCK', 'GENESIS_BLOCK_HASH']
 
 class Block:
     """
-    A block.
+    A block: a container for all the data associated with a block.
+
+    To figure out whether the block is valid on top of a block chain, there are a few `verify`
+    methods. Without calling these, you must assume the block was crafted maliciously.
 
     :ivar hash: The hash value of this block.
     :vartype hash: bytes
