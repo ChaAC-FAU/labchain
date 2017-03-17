@@ -19,7 +19,7 @@ __all__ = ['Protocol', 'PeerConnection', 'MAX_PEERS', 'HELLO_MSG']
 MAX_PEERS = 10
 """ The maximum number of peers that we connect to."""
 
-HELLO_MSG = b"bl0ckch41n" + hexlify(GENESIS_BLOCK_HASH)[:30]
+HELLO_MSG = b"bl0ckch41n" + hexlify(GENESIS_BLOCK_HASH)[:30] + b"\n"
 """ The hello message two peers use to make sure they are speaking the same protocol. """
 
 SOCKET_TIMEOUT = 30
@@ -137,7 +137,7 @@ class PeerConnection:
             item = self.outgoing_msgs.get()
             if item is None:
                 break
-            data = json.dumps(item, indent=4).encode()
+            data = json.dumps(item, indent=4).encode() + b"\n"
             self.socket.sendall(str(len(data)).encode() + b"\n" + data)
             self.outgoing_msgs.task_done()
 
