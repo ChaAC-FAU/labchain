@@ -172,9 +172,6 @@ class PeerConnection:
             msg_type = obj['msg_type']
             msg_param = obj['msg_param']
 
-            if msg_type == 'myport':
-                addr = self.socket.getpeername()
-                self.peer_addr = (addr[0],) + (int(msg_param),) + addr[2:]
             self.proto.received(msg_type, msg_param, self)
 
 
@@ -342,6 +339,9 @@ class Protocol:
 
     def received_myport(self, port: int, sender: PeerConnection):
         logging.debug("%s < myport %s", sender.peer_addr, port)
+        addr = sender.socket.getpeername()
+        sender.peer_addr = (addr[0],) + (int(port),) + addr[2:]
+
         for peer in self.peers:
             if peer.is_connected and peer is not sender:
                 if peer.peer_addr == sender.peer_addr:
