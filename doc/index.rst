@@ -3,7 +3,7 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to blockchain's documentation!
+Welcome to labChain's documentation!
 ======================================
 
 This project is a completely new blockchain-based coin, with P2P networking, a consensus mechanism and a wallet interface. The goal of the project is to provide a framework that is easy to modify for people who want to develop proof-of-concepts for blockchain-based technology.
