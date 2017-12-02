@@ -9,9 +9,13 @@ Click the link below for the full documentation.
 http://labchain.readthedocs.io/en/latest/
 
 **Running the code**
+
 You need python3 to be able to run the code. To install the requirements, that are listed in the "requirements.txt", file you should run the command "pip install -r requirements.txt".
 
 If you are in a Debian variant OS you can run the following commands (from inside the labchain code folder) to have everything set-up:
+
 sudo apt-get install python3
+
 sudo apt-get install python3-pip
+
 sudo python3 -m pip install -r requirements.txt
