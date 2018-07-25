@@ -1,0 +1,16 @@
+{% extends "layout.html" %}
+{% from "macros.html" import make_short %}
+{% block body %}
+
+{% for address in data -%}
+<div class="mycard">
+    <div class="mycard-header">
+        <h3>Address</h3>
+    </div>
+    <div class="card-body">
+        {{make_short(address,"address")}}
+    </div>
+</div>
+{%- endfor %}
+
+{% endblock %}

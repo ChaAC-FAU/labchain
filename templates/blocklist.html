@@ -1,0 +1,16 @@
+{% extends "layout.html" %}
+{% block body %}
+{% for item in data -%}
+<div class="mycard mb-3">
+    <div class="mycard-header">Block {{item.id}}:</div>
+    <div class="card-body">
+        <a href = "/block/{{item.hash}}" ><p class="card-text">{{item.hash}}</p></a>
+    </div>
+</div>
+{%- endfor %}
+{% if nextamount %}
+<div class="showmore mycard">
+    <div class=mycard-header><a href="/blocks/{{nextamount}}"><h1>Show more</h1></a></div>
+</div>
+{% endif %}
+{% endblock %}

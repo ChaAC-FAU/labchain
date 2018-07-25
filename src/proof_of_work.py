@@ -1,27 +1,18 @@
 """ Implementation and verification of the proof of work. """
 
+import logging
+
 from datetime import timedelta
 from typing import Optional
+from datetime import datetime
 
-from .crypto import MAX_HASH
+from .block import Block
 
-__all__ = ['verify_proof_of_work', 'GENESIS_DIFFICULTY', 'ProofOfWork']
+from .config import *
 
-def verify_proof_of_work(block: 'Block'):
-    """ Verify the proof of work on a block. """
-    return int.from_bytes(block.hash, byteorder='little', signed=False) > (MAX_HASH - MAX_HASH // block.difficulty)
 
-GENESIS_DIFFICULTY = 1000
-"""
-The difficulty of the genesis block.
+__all__ = ['GENESIS_DIFFICULTY', 'ProofOfWork']
 
-Right now this is the average required number of hashes to compute one valid block.
-"""
-
-DIFFICULTY_BLOCK_INTERVAL = 30
-""" The number of blocks between difficulty changes. """
-DIFFICULTY_TARGET_TIMEDELTA = timedelta(minutes=1)
-""" The time span that it should approximately take to mine `DIFFICULTY_BLOCK_INTERVAL` blocks.  """
 
 class ProofOfWork:
     """
@@ -40,6 +31,7 @@ class ProofOfWork:
         self.stopped = False
         self.block = block
         self.success = False
+        self.init_time = 0
 
     def abort(self):
         """ Aborts execution of this proof of work. """
@@ -50,13 +42,12 @@ class ProofOfWork:
         Perform the proof of work on a block, until `stopped` becomes True or the proof of
         work was successful.
         """
+        self.init_time = datetime.now()
         hasher = self.block.get_partial_hash()
         while not self.stopped:
             for _ in range(1000):
                 self.block.hash = self.block.finish_hash(hasher.copy())
-                if verify_proof_of_work(self.block):
+                if self.block.verify_proof_of_work():
                     return self.block
                 self.block.nonce += 1
         return None
-
-from .block import Block

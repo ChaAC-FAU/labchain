@@ -1,0 +1,12 @@
+{% macro make_short(hash,address) %}
+{% set max_hash_length = 80 %}
+{% if address %}
+    {%if address == "address"%}
+        <a href = "/{{address}}/{{hash}}" >{{hash[142:]|truncate(max_hash_length)}}</a>
+    {%else%}
+        <a href = "/{{address}}/{{hash}}" >{{hash|truncate(max_hash_length)}}</a>
+    {%endif%}
+{% else %}
+    {{hash|truncate(max_hash_length)}}</a>
+{% endif %}
+{% endmacro %}

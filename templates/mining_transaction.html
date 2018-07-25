@@ -1,0 +1,29 @@
+{% from "macros.html" import make_short %}
+
+
+{% if not transaction.senders %}
+<div class="transaction reward mycard" >
+    <div class="mycard-header"><h3>Mining Reward</h3> </div>
+    <table class="mycard-body"> 
+        <tr> 
+            <th>Hash</th>
+            <td>{{make_short(transaction.hash,"transaction")}}</td>
+        </tr>
+        <tr> 
+            <th>Timestamp</th>
+            <td>{{transaction.timestamp}}</td> 
+        </tr>
+        {% for target in transaction.targets-%}
+        <tr> 
+            <th>Miner</th>
+            <td>{{make_short(target.recipient_pk,"address")}}</td>
+        </tr>
+        <tr> 
+            <th>Amount</th>
+            <td>{{target.amount}}</td> 
+        </tr>
+        {%- endfor %}
+    </table>
+</div>
+
+{%endif %}

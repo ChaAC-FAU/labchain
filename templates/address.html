@@ -1,0 +1,103 @@
+{% from "macros.html" import make_short %}
+{% extends "layout.html" %}
+{% block body %}
+<div class=mycard>
+    <div class="mycard-header"><h1>Address</h1></div>
+    <table class=mycard-body>
+        <tr>
+            <th>Hash</th>
+            <td>{{make_short(data.hash[142:])}}</td>
+        </tr>
+        <tr>
+           <th>Credit</th> 
+           <td>{{data.credit}} CHaC</td>
+        </tr>
+        <tr>
+            <td colspan=2>
+                <div>
+                {% for transaction in data.sent -%}
+                <div class="mycard">
+                    <div class="mycard-header">
+                        <h3><a href="/transaction/{{transaction.hash}}">Sent</a></h3>
+                    </div>
+                    <table>
+                        {% if transaction.senders | length > 1%}
+                        <tr>
+                            <th>From:</th>
+                            <td>
+                                {% if transaction.senders %}
+                                    {% for sender in transaction.senders -%}
+                                    {{make_short(sender,"address")}}
+                                    {%- endfor %}
+                                {% else %}
+                                    Mining Reward
+                                {%endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <th>Value:</th>
+                            <th>Address:</th>
+                            
+                        </tr>
+                        {% for target in transaction.targets -%}
+                        <tr>
+                            <td>{{target.amount}}</td>    
+                            <td>{{make_short(target.recipient_pk,"address")}}</td>
+                        </tr>
+                        {%- endfor %}
+                    </table>
+                </div>
+                    
+            {%- endfor %}
+            
+            </div>
+            
+            <div>
+                {% for transaction in data.received -%}
+                <div class="mycard">
+                        <div class="mycard-header">
+                            <h3><a href="/transaction/{{transaction.hash}}">Received</a></h3>
+                        </div>
+                        <table class="mycard-body">
+                                <tr>
+                                    <th>From:</th>
+                                    <td>
+                                        {% if transaction.senders %}
+                                            {% for sender in transaction.senders -%}
+                                            {{make_short(sender,"address")}}
+            
+                                            {%- endfor %}
+                                        {% else %}
+                                            Mining Reward
+                                        {%endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Value:</th>
+                                    <th>Address:</th>
+                                    
+                                </tr>
+                                    {% for target in transaction.targets -%}
+                                <tr>
+                                    <td>
+                                        {{target.amount}}
+                                    </td>
+                                    <td>
+                                        {{make_short(target.recipient_pk,"address")}}
+                                    </td>
+                                </tr>
+                                {%- endfor %}
+                            </table>
+                        </div>
+            
+                    {%- endfor %}
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
+    
+
+    
+{% endblock %}

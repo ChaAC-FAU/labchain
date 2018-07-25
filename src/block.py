@@ -1,16 +1,19 @@
 """ Definitions of blocks, and the genesis block. """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from binascii import hexlify, unhexlify
-from struct import pack
+
 import json
 import logging
-import math
 
+import src.utils as utils
+
+from .config import *
 from .merkle import merkle_tree
 from .crypto import get_hasher
 
-__all__ = ['Block', 'GENESIS_BLOCK', 'GENESIS_BLOCK_HASH']
+__all__ = ['Block']
+
 
 class Block:
     """
@@ -21,6 +24,8 @@ class Block:
 
     :ivar hash: The hash value of this block.
     :vartype hash: bytes
+    :ivar id: The ID of this block. Genesis-Block has the ID '0'.
+    :vartype id: int
     :ivar prev_block_hash: The hash of the previous block.
     :vartype prev_block_hash: bytes
     :ivar merkle_root_hash: The hash of the merkle tree root of the transactions in this block.
@@ -39,7 +44,9 @@ class Block:
     :vartype transactions: List[Transaction]
     """
 
-    def __init__(self, prev_block_hash, time, nonce, height, received_time, difficulty, transactions, merkle_root_hash=None):
+    def __init__(self, prev_block_hash, time, nonce, height, received_time, difficulty, transactions,
+                 merkle_root_hash=None, id=None):
+        self.id = id
         self.prev_block_hash = prev_block_hash
         self.merkle_root_hash = merkle_root_hash
         self.time = time
@@ -53,6 +60,8 @@ class Block:
     def to_json_compatible(self):
         """ Returns a JSON-serializable representation of this object. """
         val = {}
+        val['id'] = self.id
+        val['hash'] = hexlify(self.hash).decode()
         val['prev_block_hash'] = hexlify(self.prev_block_hash).decode()
         val['merkle_root_hash'] = hexlify(self.merkle_root_hash).decode()
         val['time'] = self.time.strftime("%Y-%m-%dT%H:%M:%S.%f UTC")
@@ -73,32 +82,26 @@ class Block:
                    datetime.utcnow(),
                    int(val['difficulty']),
                    [Transaction.from_json_compatible(t) for t in list(val['transactions'])],
-                   unhexlify(val['merkle_root_hash']))
+                   unhexlify(val['merkle_root_hash']),
+                   int(val['id']))
 
     @classmethod
-    def create(cls, blockchain: 'Blockchain', transactions: list, ts=None):
+    def create(cls, chain_difficulty: int, prev_block: 'Block', transactions: list, ts=None):
         """
         Create a new block for a certain blockchain, containing certain transactions.
         """
         tree = merkle_tree(transactions)
-        difficulty = blockchain.compute_difficulty_next_block()
+        difficulty = chain_difficulty
+        id = prev_block.height + 1
         if ts is None:
             ts = datetime.utcnow()
-        if ts <= blockchain.head.time:
-            ts = blockchain.head.time + timedelta(microseconds=1)
-        return Block(blockchain.head.hash, ts, 0, blockchain.head.height + difficulty,
-                     None, difficulty, transactions, tree.get_hash())
+        if ts <= prev_block.time:
+            ts = prev_block.time + timedelta(microseconds=1)
+        return Block(prev_block.hash, ts, 0, prev_block.height + 1,
+                     None, difficulty, transactions, tree.get_hash(), id)
 
     def __str__(self):
         return json.dumps(self.to_json_compatible(), indent=4)
-
-    @staticmethod
-    def _int_to_bytes(val: int) -> bytes:
-        """ Turns an (arbitrarily long) integer into a bytes sequence. """
-        l = val.bit_length() + 1
-        # we need to include the length in the hash in some way, otherwise e.g.
-        # the numbers (0xffff, 0x00) would be encoded identically to (0xff, 0xff00)
-        return pack("<Q", l) + val.to_bytes(l, 'little', signed=True)
 
     def get_partial_hash(self):
         """
@@ -110,7 +113,7 @@ class Block:
         hasher.update(self.prev_block_hash)
         hasher.update(self.merkle_root_hash)
         hasher.update(self.time.strftime("%Y-%m-%dT%H:%M:%S.%f UTC").encode())
-        hasher.update(self._int_to_bytes(self.difficulty))
+        hasher.update(utils.int_to_bytes(self.difficulty))
         return hasher
 
     def finish_hash(self, hasher):
@@ -119,7 +122,7 @@ class Block:
         work can use this function to efficiently try different nonces. Other uses should
         use `hash` to get the complete hash in one step.
         """
-        hasher.update(self._int_to_bytes(self.nonce))
+        hasher.update(utils.int_to_bytes(self.nonce))
         return hasher.digest()
 
     def _get_hash(self):
@@ -131,52 +134,62 @@ class Block:
         """ Verify that the merkle root hash is correct for the transactions in this block. """
         return merkle_tree(self.transactions).get_hash() == self.merkle_root_hash
 
+    def verify_proof_of_work(self):
+        """ Verify the proof of work on a block. """
+        return int.from_bytes(self.hash, 'big') < self.difficulty
+
     def verify_difficulty(self):
         """ Verifies that the hash value is correct and fulfills its difficulty promise. """
-        if self.hash == GENESIS_BLOCK_HASH:
+        if self.height == 0:  # can be removed?!
             return True
-        if not verify_proof_of_work(self):
+        if not self.verify_proof_of_work():
             logging.warning("block does not satisfy proof of work")
             return False
         return True
 
-    def verify_prev_block(self, chain: 'Blockchain'):
+    def verify_prev_block(self, prev_block: 'Block', chain_difficulty: int):
         """ Verifies that the previous block pointer points to the head of the given block chain and difficulty and height are correct. """
-        if chain.head.hash != self.prev_block_hash:
+        if prev_block.hash != self.prev_block_hash:
             logging.warning("Previous block is not head of the block chain.")
             return False
-        if self.difficulty != chain.compute_difficulty_next_block():
+        if self.difficulty != chain_difficulty:
             logging.warning("Block has wrong difficulty.")
             return False
-        if chain.head.height + self.difficulty != self.height:
+        if prev_block.height + 1 != self.height:
             logging.warning("Block has wrong height.")
             return False
         return True
 
-    def verify_transactions(self, chain: 'Blockchain'):
+    def verify_block_transactions(self, unspent_coins: dict, reward: int):
         """ Verifies that all transaction in this block are valid in the given block chain. """
-        mining_reward = None
+        mining_rewards = []
+        all_inputs = []
 
-        trans_set = set(self.transactions)
         for t in self.transactions:
-            if not t.inputs:
-                if mining_reward is not None:
-                    logging.warning("block has more than one reward transaction")
-                    return False
-                mining_reward = t
 
-            if not t.verify(chain, trans_set - {t}):
+            all_inputs += t.inputs
+            if not t.inputs:
+                if len(mining_rewards) > 1:
+                    logging.warning("block has more than one coinbase transaction")
+                    return False
+                mining_rewards.append(t)
+
+            if not t.validate_tx(unspent_coins):
                 return False
-        if mining_reward is not None:
-            fees = sum(t.get_transaction_fee(chain) for t in self.transactions)
-            reward = chain.compute_blockreward_next_block()
-            used = sum(t.amount for t in mining_reward.targets)
-            if used > fees + reward:
-                logging.warning("mining reward is too large")
+
+            if reward != sum(t.amount for t in mining_rewards[0].targets):
+                logging.warning("reward is different than specified")
                 return False
+
+            if not self._verify_input_consistency(all_inputs):
+                return False
+
         return True
 
-    def verify_time(self, chain: 'Blockchain'):
+    def _verify_input_consistency(self, tx_inputs: 'List[TransactionInputs]'):
+        return len(tx_inputs) == len(set(tx_inputs))
+
+    def verify_time(self, head_time: datetime):
         """
         Verifies that blocks are not from far in the future, but a bit younger
         than the head of `chain`.
@@ -184,30 +197,22 @@ class Block:
         if self.time - timedelta(hours=2) > datetime.utcnow():
             logging.warning("discarding block because it is from the far future")
             return False
-        if self.time <= chain.head.time:
+        if self.time <= head_time:
             logging.warning("discarding block because it is younger than its predecessor")
             return False
         return True
 
-    def verify(self, chain: 'Blockchain'):
+    def verify(self, prev_block: 'Block', chain_difficulty: int, unspent_coins: dict, chain_indices: dict, reward: int):
         """
         Verifies that this block contains only valid data and can be applied on top of the block
         chain `chain`.
         """
-        assert self.hash not in chain.block_indices
+        assert self.hash not in chain_indices
         if self.height == 0:
             logging.warning("only the genesis block may have height=0")
             return False
-        return self.verify_difficulty() and self.verify_merkle() and self.verify_prev_block(chain) \
-                and self.verify_transactions(chain) and self.verify_time(chain)
 
-from .proof_of_work import verify_proof_of_work, GENESIS_DIFFICULTY, DIFFICULTY_BLOCK_INTERVAL, \
-        DIFFICULTY_TARGET_TIMEDELTA
-
-
-GENESIS_BLOCK = Block("None; {} {}".format(DIFFICULTY_BLOCK_INTERVAL,
-        DIFFICULTY_TARGET_TIMEDELTA).encode(), datetime(2017, 3, 3, 10, 35, 26, 922898), 0, 0,
-        datetime.utcnow(), GENESIS_DIFFICULTY, [], merkle_tree([]).get_hash())
-GENESIS_BLOCK_HASH = GENESIS_BLOCK.hash
-
-from .blockchain import Blockchain
+        return self.verify_difficulty() and self.verify_merkle() and self.verify_prev_block(prev_block,
+                                                                                            chain_difficulty) \
+               and self.verify_time(prev_block
+                                    .time) and self.verify_block_transactions(unspent_coins, reward)

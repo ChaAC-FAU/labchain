@@ -5,11 +5,12 @@ import logging
 from src.protocol import Protocol
 from src.mining import Miner
 from src.block import GENESIS_BLOCK
-from src.crypto import Signing
+from src.crypto import Key
 from src.transaction import Transaction, TransactionInput, TransactionTarget
+from datetime import datetime
 
 def test_proto():
-    reward_key = Signing.generate_private_key()
+    reward_key = Key.generate_private_key()
 
     proto1 = Protocol([], GENESIS_BLOCK, 1337)
     proto2 = Protocol([("127.0.0.1", 1337)], GENESIS_BLOCK, 1338)
@@ -20,18 +21,22 @@ def test_proto():
 
     try:
         sleep(5)
-        target_key = Signing.generate_private_key()
+        target_key = Key.generate_private_key()
         chain = miner1.chainbuilder.primary_block_chain
         reward_trans = chain.blocks[20].transactions[0]
+
         trans_in = TransactionInput(reward_trans.get_hash(), 0)
         trans_targ = TransactionTarget(target_key, reward_trans.targets[0].amount)
 
-        trans = Transaction([trans_in], [trans_targ])
+        trans = Transaction([trans_in], [trans_targ], datetime.utcnow())
         trans.sign([reward_key])
+
         assert trans.verify(chain, set()), "transaction should be valid"
 
-        proto2.received('transaction', trans.to_json_compatible(), None)
-        sleep(5)
+        proto1.received('transaction', trans.to_json_compatible(), None)
+        print("============Transaction=============")
+
+        sleep(10)
 
         chain_len1 = len(miner1.chainbuilder.primary_block_chain.blocks)
         chain_len2 = len(miner2.chainbuilder.primary_block_chain.blocks)

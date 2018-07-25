@@ -1,0 +1,10 @@
+{% extends "layout.html" %}
+{% block body %}
+<div id="transaction-display" class="display-all">
+    {% if not transaction.senders %}
+        {% include  "mining_transaction.html" %}
+    {% else %}
+        {% include "from_to_transaction.html" %}
+    {%endif %}
+</div>
+{% endblock %}

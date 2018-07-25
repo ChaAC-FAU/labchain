@@ -3,12 +3,18 @@
 from typing import List
 
 from .block import Block
-from .transaction import Transaction, TransactionTarget
+
+from .labscript import *
+from .utils import compute_blockreward_next_block
+
+from .blockchain import Blockchain
+from .crypto import Key
 
 __all__ = ['create_block']
 
+
 def create_block(blockchain: 'Blockchain', unconfirmed_transactions: 'List[Transaction]',
-                 reward_pubkey: 'Signing') -> 'Block':
+                 reward_pubkey: 'Key') -> 'Block':
     """
     Creates a new block that can be mined.
 
@@ -17,19 +23,21 @@ def create_block(blockchain: 'Blockchain', unconfirmed_transactions: 'List[Trans
                                      this block.
     :param reward_pubkey: The key that should receive block rewards.
     """
+
+    # sort the uncorfirmed transactions by the transaction fee amount
+    sorted_unconfirmed_tx = sorted(unconfirmed_transactions,
+                                   key=lambda tx: tx.get_transaction_fee(blockchain.unspent_coins), reverse=True)
     transactions = set()
-    for t in unconfirmed_transactions:
-        if t.verify(blockchain, transactions):
-            # TODO: choose most profitable of conflicting transactions
+
+    for t in sorted_unconfirmed_tx:
+        if t.validate_tx(blockchain.unspent_coins) and not t.check_tx_collision(transactions):
             transactions.add(t)
 
+    reward = compute_blockreward_next_block(blockchain.head.height)
+    fees = sum(t.get_transaction_fee(blockchain.unspent_coins) for t in transactions)
 
-    reward = blockchain.compute_blockreward_next_block()
-    fees = sum(t.get_transaction_fee(blockchain) for t in transactions)
-    trans = Transaction([], [TransactionTarget(reward_pubkey, reward + fees)], [], iv=blockchain.head.hash)
+    trans = Transaction([], [TransactionTarget(TransactionTarget.pay_to_pubkey(reward_pubkey), fees + reward)],
+                        datetime.utcnow(), iv=blockchain.head.hash)
     transactions.add(trans)
 
-    return Block.create(blockchain, list(transactions))
-
-from .blockchain import Blockchain
-from .crypto import Signing
+    return Block.create(blockchain.compute_difficulty_next_block(), blockchain.head, list(transactions))

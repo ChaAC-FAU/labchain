@@ -1,0 +1,46 @@
+
+{% extends "layout.html" %}
+{% block body %}
+
+
+<div>
+        {% for key, transaction in data.items() -%}
+          <div>
+              <h3><a href = "/transaction/{{transaction.hash}}" >{{transaction.hash}}</a></h3>
+          </div>
+
+        <table>
+              <tr>
+                  <th>From:</th>
+                  <th>To:</th>
+                  <th>Value:</th>
+              </tr>
+              <tr>
+                  <td>
+                      {% if transaction.senders %}
+                          {% for sender in transaction.senders -%}
+                                <a href = "/address/{{sender}}" >{{sender}}</a><br>
+                          {%- endfor %}
+                      {% else %}
+                            Mining Reward
+                      {%endif %}
+
+                  </td>
+                  <td>
+                      {% for target in transaction.targets -%}
+                            <a href = "/address/{{target.recipient_pk}}" >{{target.recipient_pk}}</a> <br>
+                      {%- endfor %}
+                  </td>
+                  <td>
+                      {% for target in transaction.targets -%}
+                            {{target.amount}} <br>
+                      {%- endfor %}
+                  </td>
+              </tr>
+             </table>
+
+        {%- endfor %}
+    </div>
+
+
+{% endblock %}

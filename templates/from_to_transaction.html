@@ -1,0 +1,76 @@
+{% from "macros.html" import make_short %}
+<div class="transaction mycard">
+        <div class="mycard-header">
+            <h3>Transaction</h3>
+        </div>
+        <table class="mycard-body"> 
+            <tr> 
+                <th>Hash</th>
+                <td>{{make_short(transaction.hash,"transaction")}}</td> 
+            </tr>
+            {% if transaction.block_id %}
+            <tr> 
+                <th>Block ID</th>
+                <td>{{transaction.block_id}}</td> 
+            </tr>
+            {%endif%}
+            <tr> 
+                <th>Block hash</th>
+                    <td>{{make_short(transaction.block_hash,"block")}}</td> 
+                </tr>
+            <tr> 
+                <th>Number of confirmations</th>
+                <td>{{transaction.number_confirmations}}</td> 
+            </tr>
+            {% if transaction.fee %}
+            <tr>
+                <th>Transaction Fee</th>
+                <td>{{transaction.fee}}</td>
+            </tr>
+            {%endif%}
+            <tr>
+                <th>Timestamp</th>
+                <td>{{transaction.timestamp}}</td>
+            </tr>
+            <tr> 
+                <th colspan="2">Sender</th>
+
+            </tr>
+    
+            {% for sender in transaction.senders-%}
+            <tr>
+                <td colspan="2">
+                    {{ make_short(sender,'address') }}
+                </td>
+            </tr>
+    
+            {%- endfor %}
+    
+    
+            <tr>
+                <th>Input Transaction</th>
+                <th>Transaction Signature</th>
+            </tr>
+        {% for i in transaction.inp-%}
+            <tr>
+                <td>{{make_short(i.input.transaction_hash,"transaction")}}</td>
+                <td>{{make_short(i.signature)}}</td>
+            <tr>
+        {%- endfor %}
+    
+    
+            <tr>
+                <th>Recipient Address</th>
+                <th>Amount</th>
+            </tr>
+        {% for target in transaction.targets-%}
+            <tr>
+                <td>{{make_short(target.recipient_pk,"address")}}</td>
+                <td>{{target.amount}}</td>
+            <tr>
+        {%- endfor %}
+    
+        </table>
+            
+    </div>
+<div >

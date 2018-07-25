@@ -35,8 +35,8 @@ def trans_as_input(trans, out_idx=0):
 
 def new_trans(old_trans, out_idx=0, fee=0):
     amount = old_trans.targets[out_idx].amount - fee
-    key = Signing.generate_private_key()
+    key = Key.generate_private_key()
     trans = Transaction([trans_as_input(old_trans, out_idx)],
-                        [TransactionTarget(key, amount)])
+                        [TransactionTarget(key, amount)],datetime.now())
     trans.sign([old_trans.targets[out_idx].recipient_pk])
     return trans

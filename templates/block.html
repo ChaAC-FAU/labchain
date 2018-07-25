@@ -1,0 +1,56 @@
+{% extends "layout.html" %}
+{% block body %}
+
+    <div class="mycard">
+        <div class="mycard-header">
+            <h3>Block</h3>
+        </div>
+        <table class="mycard-body">
+            <tr>
+                <th>ID</th>
+                <td>{{data.id}}</td>
+            </tr>
+            <tr>
+                <th>Hash</th>
+                <td>{{data.hash}}</td>
+            </tr>
+            <tr>
+                <th>Previous Block</th>
+                <td><a href = "{{data.prev_block_hash}}">{{data.prev_block_hash}}</a></td>
+            </tr>
+            <tr>
+                <th>Time</th>
+                <td>{{data.time}}</td>
+            </tr>
+            <tr>
+                <th>Nonce</th>
+                <td>{{data.nonce}}</td>
+            </tr>    
+            <tr>
+                <th>Merkle Root</th>
+                <td>{{data.merkle_root_hash}}</td>
+            </tr>    
+            <tr>
+                <th>Height</th>
+                <td>{{data.height}}</td>
+            </tr>
+            <tr>
+                <th>Difficulty</th>
+                <td>{{data.difficulty}}</td>
+            </tr>
+        </table>       
+    </div>
+    
+    <div>
+        {% for transaction in data.transactions -%}
+    {% if not transaction.senders %}
+        {% include  "mining_transaction.html" %}
+    {% else %}
+        {% include "from_to_transaction.html" %}
+    {%endif %}
+
+        {%- endfor %}
+
+    </div>
+
+    {% endblock %}

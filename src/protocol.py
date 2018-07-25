@@ -24,11 +24,10 @@ from collections import namedtuple
 from threading import Thread, Lock
 from queue import Queue, PriorityQueue
 from binascii import unhexlify, hexlify
-from uuid import UUID, uuid4
+from uuid import uuid4
 from typing import Callable, List, Optional
 
-from .block import GENESIS_BLOCK_HASH
-
+from .blockchain import GENESIS_BLOCK_HASH
 
 __all__ = ['Protocol', 'PeerConnection', 'MAX_PEERS', 'HELLO_MSG']
 
@@ -45,6 +44,7 @@ succeed.
 SOCKET_TIMEOUT = 30
 """ The socket timeout for P2P connections. """
 
+
 class PeerConnection:
     """
     Handles the low-level socket connection to one other peer.
@@ -59,7 +59,7 @@ class PeerConnection:
     :ivar outgoing_msgs: A queue of messages we want to send to this peer.
     """
 
-    def __init__(self, peer_addr: tuple, proto: 'Protocol', sock: socket.socket=None):
+    def __init__(self, peer_addr: tuple, proto: 'Protocol', sock: socket.socket = None):
         self.peer_addr = None
         self._sock_addr = peer_addr
         self.socket = sock
@@ -214,6 +214,7 @@ class SocketServer(socketserver.TCPServer):
     def shutdown_request(self, request):
         pass
 
+
 class Protocol:
     """
     Manages connections to our peers. Allows sending messages to them and has event handlers
@@ -235,7 +236,7 @@ class Protocol:
     """
 
     def __init__(self, bootstrap_peers: 'List[tuple]',
-                 primary_block: 'Block', listen_port: int=0, listen_addr: str=""):
+                 primary_block: 'Block', listen_port: int = 0, listen_addr: str = ""):
         """
         :param bootstrap_peers: network addresses of peers where we bootstrap the P2P network from
         :param primary_block: the head of the primary block chain
@@ -245,6 +246,7 @@ class Protocol:
 
         self.block_receive_handlers = []
         self.trans_receive_handlers = []
+        self.opening_receive_handlers = []
         self.block_request_handlers = []
         self._primary_block = primary_block.to_json_compatible()
         self.peers = []
@@ -252,10 +254,10 @@ class Protocol:
         self._callback_counter = 0
         self._callback_counter_lock = Lock()
 
-
         class IncomingHandler(socketserver.BaseRequestHandler):
             """ Handler for incoming P2P connections. """
             proto = self
+
             def handle(self):
                 logging.info("connection from peer %s", repr(self.client_address))
                 if len(self.proto.peers) > MAX_PEERS:
@@ -267,6 +269,7 @@ class Protocol:
 
                 conn = PeerConnection(self.client_address, self.proto, self.request)
                 self.proto.peers.append(conn)
+
         self.server = SocketServer((listen_addr, listen_port), IncomingHandler)
         self.server.serve_forever_bg()
 
@@ -296,7 +299,7 @@ class Protocol:
         for peer in self.peers:
             peer.send_msg("transaction", trans.to_json_compatible())
 
-    def received(self, msg_type: str, msg_param, peer: Optional[PeerConnection], prio: int=1):
+    def received(self, msg_type: str, msg_param, peer: Optional[PeerConnection], prio: int = 1):
         """
         Called by a PeerConnection when a new message was received.
 
@@ -390,10 +393,10 @@ class Protocol:
 
     def received_transaction(self, transaction: dict, sender: PeerConnection):
         """ Someone sent us a transaction. """
-        transaction = Transaction.from_json_compatible(transaction)
-        logging.debug("%s < transaction %s", sender.peer_addr, hexlify(transaction.get_hash()))
+        tx = Transaction.from_json_compatible(transaction)
+        logging.debug("%s < transaction %s", sender.peer_addr, hexlify(tx.get_hash()))
         for handler in self.trans_receive_handlers:
-            handler(transaction)
+            handler(tx)
 
     def received_disconnected(self, _, peer: PeerConnection):
         """
@@ -410,6 +413,7 @@ class Protocol:
         logging.debug("* > getblock %s", hexlify(block_hash))
         for peer in self.peers:
             peer.send_msg("getblock", hexlify(block_hash).decode())
+
 
 from .block import Block
 from .transaction import Transaction

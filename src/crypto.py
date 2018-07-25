@@ -3,25 +3,31 @@
 import os
 import os.path
 import tempfile
+import random
+import string
 from binascii import hexlify, unhexlify
 from typing import Iterator, Iterable
 
 from Crypto.Signature import PKCS1_PSS
-from Crypto.Hash import SHA512
+from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
 
-__all__ = ['get_hasher', 'Signing', 'MAX_HASH']
+# TODO upgrade to ecdsa at https://pypi.org/project/fastecdsa/
+
+__all__ = ['get_hasher', 'Key']
+
 
 def get_hasher():
     """ Returns a object that you can use for hashing, compatible to the `hashlib` interface. """
-    return SHA512.new()
+    return SHA256.new()
 
 
-MAX_HASH = (1 << 512) - 1
-""" The largest possible hash value, when interpreted as an unsigned int. """
+def get_random_int(length: int) -> int:
+    rnd = random.SystemRandom()
+    return rnd.randint(0, (2 ** length) - 1)
 
 
-class Signing:
+class Key:
     """
     Functionality for creating and verifying signatures, and their public/private keys.
 
@@ -48,7 +54,7 @@ class Signing:
     @classmethod
     def generate_private_key(cls):
         """ Generate a new private key. """
-        return Signing(RSA.generate(3072).exportKey())
+        return Key(RSA.generate(1024).exportKey())
 
     @classmethod
     def from_file(cls, path):
@@ -56,7 +62,7 @@ class Signing:
         with open(path, 'rb') as f:
             return cls(f.read())
 
-    def as_bytes(self, include_priv: bool=False) -> bytes:
+    def as_bytes(self, include_priv: bool = False) -> bytes:
         """ Serialize this key to a `bytes` value. """
         if include_priv:
             return self.rsa.exportKey()
@@ -72,7 +78,7 @@ class Signing:
         """ Creates a new object of this class, from a JSON-serializable representation. """
         return cls(unhexlify(obj))
 
-    def __eq__(self, other: 'Signing'):
+    def __eq__(self, other: 'Key'):
         return self.rsa.e == other.rsa.e and self.rsa.n == other.rsa.n
 
     def __hash__(self):
@@ -87,7 +93,7 @@ class Signing:
         return self.rsa.has_private()
 
     @classmethod
-    def read_many_private(cls, file_contents: bytes) -> 'Iterator[Signing]':
+    def read_many_private(cls, file_contents: bytes) -> 'Iterator[Key]':
         """ Reads many private keys from the (binary) contents of a file written with `write_many_private`. """
         end = b"-----END RSA PRIVATE KEY-----"
         for key in file_contents.strip().split(end):
@@ -98,7 +104,7 @@ class Signing:
             yield cls(key)
 
     @staticmethod
-    def write_many_private(path: str, keys: 'Iterable[Signing]'):
+    def write_many_private(path: str, keys: 'Iterable[Key]'):
         """ Writes the private keys in `keys` to the file at `path`. """
         dirname = os.path.dirname(path) or "."
         with tempfile.NamedTemporaryFile("wb", delete=False, dir=dirname) as fp:

@@ -1,0 +1,48 @@
+{% extends "layout.html" %}
+{% block body %}
+<div class="mycard">
+    <div class="mycard-header"><h1>Welcome to the LabChain Explorer</h1></div>
+</div>
+
+<div class="statistics mycard">
+    <div class="mycard-header"><h2>Statistics</h2></div>
+    <div class="mycard-body">
+        <div class="mycard stat"><div class="mycard-header">Block Time Average</div> <div class="card-body"> {{data.statistics.blocktime}} Seconds</div></div>
+        <div class="mycard stat"><div class="mycard-header">Total Blocks</div> <div class="card-body">{{data.statistics.totalblocks}}</div></div>
+        <div class="mycard stat"><div class="mycard-header">Current Difficulty</div> <div class="card-body">{{data.statistics.difficulty}}</div></div>
+        <div class="mycard stat"><div class="mycard-header">Hash Rate</div> <div class="card-body">{{data.statistics.hashrate}} Hashes per Second</div></div>
+        <div class="mycard stat"><div class="mycard-header">Transactions per Second</div> <div class="card-body">{{data.statistics.tps}}</div></div>
+    </div>
+</div>
+
+<div class=HorizontalGroup>
+    <div class=half>
+            <div = class="blocks mycard">
+                    <div class="mycard-header"><a href="/blocks"><h2>Recent Blocks</h2></a></div>
+                    {% for item in data.blocks -%}
+                    <div class="mycard mb-3">
+                        <div class="mycard-header">Block {{item.id}}:</div>
+                        <div class="card-body">
+                            <a href = "/block/{{item.hash}}" ><p class="card-text">{{item.hash}}</p></a>
+                        </div>
+                    </div>
+                    {%- endfor %}
+                </div>
+    </div>
+    <div class=half>
+            <div class="transactions mycard">
+                    <div class="mycard-header"><a href="/transactions"><h2>Recent Transactions</h2></a></div>
+                    <div class="mycard-body">
+                        {%for transaction in data.transactions -%}
+                            {% if not transaction.senders %}
+                                {% include "mining_transaction.html" %}
+                            {% else %}
+                                {% include "from_to_transaction.html" %}
+                            {%endif %}
+                        {%- endfor %}
+                    </div>
+                </div>
+    </div>
+</div>
+
+{% endblock %}

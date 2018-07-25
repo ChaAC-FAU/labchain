@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<div id="transaction-display">
+{%for transaction in data_array -%}
+    {% if not transaction.senders %}
+        {% include  "mining_transaction.html" %}
+    {% else %}
+        {% include "from_to_transaction.html" %}
+    {%endif %}
+{%- endfor %}
+</div>
+
+{% if nextamount %}
+<div class="showmore mycard">
+    <div class=mycard-header><a href="/transactions/{{nextamount}}"><h1>Show more</h1></a></div>
+</div>
+{% endif %}
+{% endblock %}

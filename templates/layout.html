@@ -1,0 +1,39 @@
+<!doctype html>
+
+<head>
+    <title>LabChain</title>
+    <meta http-equiv="refresh" content="5">
+    <link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='style.css') }}">
+    <link rel="stylesheet" href="{{url_for('static',filename='bootstrap-4.0.0-dist/css/bootstrap.min.css')}}">
+    <script type=text/javascript src="{{ url_for('static', filename='jquery-3.3.1.js') }}"></script>
+    <script src="{{url_for('static',filename='bootstrap-4.0.0-dist/js/bootstrap.min.js')}}"></script>
+</head>
+<body>
+    <div class=page>
+            <nav class="mynavbar navbar navbar-expand-lg navbar-dark navcolor">
+                <a target="_blank" href="https://www.chaac.tf.fau.de/"><img src="{{ url_for('static', filename='ChaAC-logo-white.png')}}"></a><a class="navbar-brand" href="/">LabChain</a>
+                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarColor01" aria-controls="navbarColor01" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <div class="collapse navbar-collapse" id="navbarColor01">
+                    <ul class="navbar-nav mr-auto">
+                        <li class="nav-item"><a class="nav-link" href="/blocks">Blocks</a></li> <!-- haben wir-->
+                        <li class="nav-item"><a class="nav-link" href="/transactions">Transactions</a></li> <!-- haben wir-->
+                        <li class="nav-item"><a class="nav-link" href="/addresses">Adresses</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/about">About</a></li>
+
+                        <!--<li class="nav-item"><a class="nav-link" href="/">Wallet</a></li>-->
+                    </ul>
+                </div>
+            </nav>
+
+            <div class=content>
+                {% block body %}{% endblock %}
+            </div>
+    </div>
+    <footer class="footer">
+        ©2018 Patrick Dolinic, Jonas Heinrich, Lukas Mahlmeister, Martin Mecklenburg | The ChaAC Coin Blockchain Explorer
+        | <a class="footer" href="https://github.com/ChaAC-FAU/labchain">GitHub</a> | <a class="footer" href="http://labchain.readthedocs.io/en/latest/">Docs</a>
+    </footer>
+</body>

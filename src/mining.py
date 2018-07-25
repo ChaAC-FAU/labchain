@@ -4,10 +4,10 @@ import json
 import os
 import sys
 import signal
-import time
+
 import select
 from threading import Thread, Condition
-from typing import Optional, Callable, Tuple, List
+from typing import Callable, Tuple, List
 
 from .proof_of_work import ProofOfWork
 from .chainbuilder import ChainBuilder
@@ -16,9 +16,8 @@ from . import mining_strategy
 
 __all__ = ['Miner']
 
-
-
 signal.signal(signal.SIGCHLD, signal.SIG_IGN)
+
 
 def exit_on_pipe_close(pipe):
     """ Waits until the pipe `pipe` can no longer be used, then kills this process. """
@@ -38,11 +37,11 @@ def start_process(func: Callable) -> Tuple[int, int]:
     """
     rx, wx = os.pipe()
     pid = os.fork()
-    if pid == 0: # child
+    if pid == 0:  # child
         try:
             os.close(0)
             os.closerange(3, wx)
-            os.closerange(wx + 1, 2**16)
+            os.closerange(wx + 1, 2 ** 16)
 
             Thread(target=exit_on_pipe_close, args=(wx,), daemon=True).start()
 
@@ -55,9 +54,10 @@ def start_process(func: Callable) -> Tuple[int, int]:
             traceback.print_exc()
             os._exit(1)
         os._exit(0)
-    else: # parent
+    else:  # parent
         os.close(wx)
         return rx, pid
+
 
 def wait_for_result(pipes: List[int], cls: type):
     """
@@ -76,6 +76,7 @@ def wait_for_result(pipes: List[int], cls: type):
 
     with os.fdopen(ready[0], "r") as fp:
         return cls.from_json_compatible(json.load(fp))
+
 
 class Miner:
     """
@@ -102,7 +103,7 @@ class Miner:
     :ivar _cur_miner_pids: Process ids of our worker processes.
     :vartype _cur_miner_pids: List[int]
     :ivar reward_pubkey: The public key to which mining fees and block rewards should be sent to.
-    :vartype reward_pubkey: Signing
+    :vartype reward_pubkey: Key
     """
 
     def __init__(self, proto, reward_pubkey):
@@ -187,7 +188,3 @@ class Miner:
             self._stop_mining_for_now()
             self._miner_cond.notify()
         self.chainbuilder.chain_change_handlers.remove(self._chain_changed)
-
-from .protocol import Protocol
-from .chainbuilder import ChainBuilder
-from .crypto import Signing

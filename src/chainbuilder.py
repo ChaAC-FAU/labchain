@@ -27,16 +27,20 @@ most checkpoints being relatively recent. There also is always one checkpoint wi
 block.
 """
 
+import binascii
 import threading
 import logging
 import math
 from typing import List, Dict, Callable, Optional
-from datetime import datetime, timedelta
+from datetime import datetime
 
-from .block import GENESIS_BLOCK, GENESIS_BLOCK_HASH, Block
-from .blockchain import Blockchain
+from .config import *
+from .block import Block
+from .blockchain import Blockchain, GENESIS_BLOCK, GENESIS_BLOCK_HASH
+from .protocol import Protocol
 
 __all__ = ['ChainBuilder']
+
 
 class BlockRequest:
     """
@@ -50,12 +54,6 @@ class BlockRequest:
     :ivar _request_count: The number of requests to our peers we have sent.
     :vartype _request_count: int
     """
-
-    BLOCK_REQUEST_RETRY_INTERVAL = timedelta(minutes=1)
-    """ The approximate interval after which a block request will be retried. """
-    BLOCK_REQUEST_RETRY_COUNT = 3
-    """ The number of failed requests of a block until we give up and delete the depending partial chains. """
-
 
     def __init__(self):
         self.partial_chains = [[]]
@@ -71,11 +69,12 @@ class BlockRequest:
         self._request_count += 1
         self._last_update = datetime.utcnow()
         protocol.send_block_request(self.partial_chains[0][-1].prev_block_hash)
-        logging.debug("asking for another block %d (attempt %d)", max(len(r) for r in self.partial_chains), self._request_count)
+        logging.debug("asking for another block %d (attempt %d)", max(len(r) for r in self.partial_chains),
+                      self._request_count)
 
     def timeout_reached(self) -> bool:
         """ Returns a bool indicating whether all attempts to download this block have failed. """
-        return self._request_count > self.BLOCK_REQUEST_RETRY_COUNT
+        return self._request_count > BLOCK_REQUEST_RETRY_COUNT
 
     def checked_retry(self, protocol: 'Protocol'):
         """
@@ -83,11 +82,12 @@ class BlockRequest:
         request was sent yet.
         """
 
-        if self._last_update + self.BLOCK_REQUEST_RETRY_INTERVAL < datetime.utcnow():
-            if self._request_count >= self.BLOCK_REQUEST_RETRY_COUNT:
+        if self._last_update + BLOCK_REQUEST_RETRY_INTERVAL < datetime.utcnow():
+            if self._request_count >= BLOCK_REQUEST_RETRY_COUNT:
                 self._request_count += 1
             else:
                 self.send_request(protocol)
+
 
 class ChainBuilder:
     """
@@ -106,7 +106,7 @@ class ChainBuilder:
     :ivar unconfirmed_transactions: Known transactions that are not part of the primary block chain.
     :vartype unconfirmed_transactions: Dict[bytes, Transaction]
     :ivar chain_change_handlers: Event handlers that get called when we find out about a new primary
-                                 block chain.
+                                 block chain.unconfirmed_transactions
     :vartype chain_change_handlers: List[Callable]
     :ivar transaction_change_handlers: Event handlers that get called when we find out about a new
                                        transaction.
@@ -118,10 +118,17 @@ class ChainBuilder:
     def __init__(self, protocol: 'Protocol'):
         self.primary_block_chain = Blockchain()
         self._block_requests = {}
-        self._blockchain_checkpoints = { GENESIS_BLOCK_HASH: self.primary_block_chain }
+        self._blockchain_checkpoints = {GENESIS_BLOCK_HASH: self.primary_block_chain}
 
-        self.block_cache = { GENESIS_BLOCK_HASH: GENESIS_BLOCK }
+        self.block_cache = {GENESIS_BLOCK_HASH: GENESIS_BLOCK}
         self.unconfirmed_transactions = {}
+
+        # Adding the tx from Genesis block to unspent coins
+        for tx in GENESIS_BLOCK.transactions:
+            for i, target in enumerate(tx.targets):
+                if target.is_pay_to_pubkey or target.is_pay_to_pubkey_lock:
+                    self.primary_block_chain.unspent_coins[(tx.get_hash(), i)] = target
+
         # TODO: we want this to be sorted by some function of rewards and age
         # TODO: we want two lists, one with known valid, unapplied transactions, the other with all known transactions (with some limit)
 
@@ -151,8 +158,8 @@ class ChainBuilder:
         hash_val = transaction.get_hash()
 
         def input_ok(inp):
-            return inp in self.primary_block_chain.unspent_coins or \
-                    inp.transaction_hash in self.unconfirmed_transactions
+            return (inp.transaction_hash, inp.output_idx) in self.primary_block_chain.unspent_coins or \
+                   inp.transaction_hash in self.unconfirmed_transactions
 
         if hash_val not in self.unconfirmed_transactions and \
                 all(input_ok(inp) for inp in transaction.inputs):
@@ -163,12 +170,13 @@ class ChainBuilder:
 
     def _new_primary_block_chain(self, chain: 'Blockchain'):
         """ Does all the housekeeping that needs to be done when a new longest chain is found. """
-        logging.info("new primary block chain with height %d with current difficulty %d", len(chain.blocks), chain.head.difficulty)
+        logging.info("new primary block chain with height %d with current difficulty %d", len(chain.blocks),
+                     chain.head.difficulty)
         self._assert_thread_safety()
         self.primary_block_chain = chain
         todelete = set()
         for (hash_val, trans) in self.unconfirmed_transactions.items():
-            if not trans.verify(chain, set()):
+            if not trans.validate_tx(chain.unspent_coins):
                 todelete.add(hash_val)
         for hash_val in todelete:
             del self.unconfirmed_transactions[hash_val]
@@ -201,6 +209,7 @@ class ChainBuilder:
             if next_chain is None:
                 logging.warning("invalid block")
                 break
+                # TODO we need to figure out why the miner stops after an invalid block!
             chain = next_chain
             checkpoints[chain.head.hash] = chain
 
@@ -212,7 +221,6 @@ class ChainBuilder:
             del checkpoints[hash_val]
         self._blockchain_checkpoints = checkpoints
         self._new_primary_block_chain(chain)
-
 
     def _retry_expired_requests(self):
         """ Sends new block requests to our peers for unanswered pending requests. """
@@ -243,28 +251,30 @@ class ChainBuilder:
     def new_block_received(self, block: 'Block'):
         """ Event handler that is called by the network layer when a block is received. """
         self._assert_thread_safety()
-        if block.hash in self.block_cache or not block.verify_difficulty() or \
-                not block.verify_merkle():
+
+        if (block.hash in self.block_cache) or (not block.verify_difficulty()) or (not block.verify_merkle()):
             return
+
         self.block_cache[block.hash] = block
 
         self._retry_expired_requests()
 
         if block.hash not in self._block_requests:
-            if block.height > self.primary_block_chain.head.height:
-                if block.hash not in self._block_requests:
-                    self._block_requests[block.hash] = BlockRequest()
-            else:
-                return
+            self._block_requests[block.hash] = BlockRequest()
+        else:
+            return
 
         request = self._block_requests[block.hash]
         del self._block_requests[block.hash]
+
         while True:
             for partial_chain in request.partial_chains:
                 partial_chain.append(block)
-            if block.prev_block_hash not in self.block_cache or block.prev_block_hash in self._blockchain_checkpoints:
+            if (block.prev_block_hash not in self.block_cache) or (
+                    block.prev_block_hash in self._blockchain_checkpoints):
                 break
             block = self.block_cache[block.prev_block_hash]
+
         if block.prev_block_hash in self._block_requests:
             chains = request.partial_chains
             request = self._block_requests[block.prev_block_hash]
@@ -279,7 +289,3 @@ class ChainBuilder:
             for partial_chain in request.partial_chains:
                 self._build_blockchain(checkpoint, partial_chain[::-1])
         request.checked_retry(self.protocol)
-
-from .protocol import Protocol
-from .block import Block
-from .transaction import Transaction
