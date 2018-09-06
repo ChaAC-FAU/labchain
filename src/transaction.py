@@ -5,11 +5,11 @@ import logging
 from datetime import datetime, timezone
 from collections import namedtuple
 from binascii import hexlify, unhexlify
-from typing import List
+from typing import List, Optional
 
 import src.utils as utils
 
-from .labscript import interpreter
+from .scriptinterpreter import ScriptInterpreter
 
 from .crypto import get_hasher, Key
 
@@ -39,6 +39,12 @@ class TransactionTarget(namedtuple("TransactionTarget", ["pubkey_script", "amoun
         }
 
     @classmethod
+    def burn(self, data:bytes) -> str:
+        """ Returns a OP_RETURN script"""
+        data = hexlify(data).decode()
+        return data + " OP_RETURN"
+
+    @classmethod
     def pay_to_pubkey(self, recipient_pk: Key) -> str:
         """ Returns a standard pay-to-pubkey script """
         keystr = recipient_pk.to_json_compatible()
@@ -51,7 +57,7 @@ class TransactionTarget(namedtuple("TransactionTarget", ["pubkey_script", "amoun
         return str(lock_time.replace(tzinfo=timezone.utc).timestamp()) + " OP_CHECKLOCKTIME " + keystr + " OP_CHECKSIG"
 
     @property
-    def get_pubkey(self) -> Key:
+    def get_pubkey(self) -> Optional[Key]:
         """ Returns the public key of the target for a standard PAY_TO_PUBKEY transaction"""
         if self.is_pay_to_pubkey_lock:
             return Key.from_json_compatible(self.pubkey_script[
@@ -69,10 +75,15 @@ class TransactionTarget(namedtuple("TransactionTarget", ["pubkey_script", "amoun
 
     @property
     def is_pay_to_pubkey_lock(self) -> bool:
-        # TODO SHOULD! not maybe! SHOULD!  fix this later! it needs to check is the strings are in the correct position within the script
+        # TODO it needs to check if the strings are in the correct position within the script
         # op1 = self.pubkey_script[:self.pubkey_script.find(" "):]
         # op2 = self.pubkey_script[self.pubkey_script.find("OP_CHECKLOCKTIME"):]
         return ("OP_CHECKSIG" in self.pubkey_script) and ("OP_CHECKLOCKTIME" in self.pubkey_script)
+
+    @property
+    def has_data(self) -> bool:
+        op = self.pubkey_script[self.pubkey_script.find(" ") + 1:]
+        return op == "OP_RETURN"
 
     @property
     def is_locked(self) -> bool:
@@ -93,6 +104,14 @@ class TransactionInput(namedtuple("TransactionInput", ["transaction_hash", "outp
     :ivar sig_script: The script redeeming the output point by output_idx of the transaction pointed by transaction_hash
     :vartype sig_script: string
     """
+
+    def collides(self, other):
+        if self.transaction_hash == other.transaction_hash:
+            return self.output_idx == other.output_idx
+
+    @property
+    def is_coinbase(self):
+        return self.output_idx == -1
 
     @classmethod
     def from_json_compatible(cls, obj):
@@ -187,7 +206,7 @@ class Transaction:
 
     def get_transaction_fee(self, unspent_coins: dict):
         """ Computes the transaction fees this transaction provides. """
-        if not self.inputs:
+        if self.inputs[0].is_coinbase:
             return 0  # block reward transaction pays no fees
         try:
             input_amount = sum(unspent_coins[(inp.transaction_hash, inp.output_idx)].amount for inp in self.inputs)
@@ -195,7 +214,6 @@ class Transaction:
             return input_amount - output_amount
         except:
             logging.warning("Transaction input is not in unspent coins. Transaction is invalid or spent.")
-            # print(unspent_coins.items())
             raise ValueError('Transaction input not found.')
 
     def _verify_amounts(self) -> bool:
@@ -210,24 +228,37 @@ class Transaction:
         """
         Validate the transaction
         """
-
         if not (self._verify_amounts()):
             return False
 
         for inp in self.inputs:
-            if ((inp.transaction_hash, inp.output_idx) not in unspent_coins):
-                return False  # ("The input is not in the unspent transactions database!")
-        for inp in self.inputs:
-            if not (
-            interpreter(inp.sig_script, unspent_coins[(inp.transaction_hash, inp.output_idx)].pubkey_script, self)):
-                return False  # ("Could not validate the Tx!")
+            coinbase = inp.is_coinbase
+            if coinbase and len(self.inputs) > 1:
+                logging.warning("A coinbase transaction can only have one coinbase.")
+                return False
+            elif coinbase:
+                return True
 
-        return True
+            if (inp.transaction_hash, inp.output_idx) not in unspent_coins:
+                return False  # ("The input is not in the unspent transactions database!")
+
+
+            script = ScriptInterpreter(inp.sig_script,
+                                           unspent_coins[(inp.transaction_hash, inp.output_idx)].pubkey_script,
+                                           self.get_hash())
+
+            if not script.execute_script():
+                return False
+
+        # ensures that can't spend more coins than there are input coins
+        return self.get_transaction_fee(unspent_coins) >= 0
+
+
 
     def check_tx_collision(self, other_tx):
         for tx in other_tx:
             for inp_other in tx.inputs:
                 for inp_self in self.inputs:
-                    if inp_self == inp_other:
+                    if inp_self.collides(inp_other):
                         return True
         return False

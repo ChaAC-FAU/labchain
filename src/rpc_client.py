@@ -37,6 +37,12 @@ class RPCClient:
         resp.raise_for_status()
         return [Transaction.from_json_compatible(t) for t in resp.json()]
 
+    def get_transaction(self, tx_hash: bytes) -> Transaction:
+        """ Returns the transaction with hash tx_hash """
+        resp = self.sess.post(self.url + 'transaction', data=tx_hash,          headers={"Content-Type": "application/json"})
+        resp.raise_for_status()
+        return Transaction.from_json_compatible(resp.json())
+
     def show_balance(self, pubkeys: List[Key]) -> Iterator[Tuple[Key, int]]:
         """ Returns the balance of a number of public keys. """
         resp = self.sess.post(self.url + "show-balance", data=json.dumps([pk.to_json_compatible() for pk in pubkeys]),
@@ -73,3 +79,4 @@ class RPCClient:
                   for i, inp in enumerate(temp_inputs)]
 
         return Transaction(inputs, targets, timestamp)
+

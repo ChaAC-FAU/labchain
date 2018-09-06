@@ -26,12 +26,10 @@ of length `N`, the number of checkpoints is always kept between `2*log_2(N)` and
 most checkpoints being relatively recent. There also is always one checkpoint with only the genesis
 block.
 """
-
-import binascii
 import threading
 import logging
 import math
-from typing import List, Dict, Callable, Optional
+from typing import List, Optional
 from datetime import datetime
 
 from .config import *
@@ -71,7 +69,6 @@ class BlockRequest:
         protocol.send_block_request(self.partial_chains[0][-1].prev_block_hash)
         logging.debug("asking for another block %d (attempt %d)", max(len(r) for r in self.partial_chains),
                       self._request_count)
-
     def timeout_reached(self) -> bool:
         """ Returns a bool indicating whether all attempts to download this block have failed. """
         return self._request_count > BLOCK_REQUEST_RETRY_COUNT
@@ -129,9 +126,6 @@ class ChainBuilder:
                 if target.is_pay_to_pubkey or target.is_pay_to_pubkey_lock:
                     self.primary_block_chain.unspent_coins[(tx.get_hash(), i)] = target
 
-        # TODO: we want this to be sorted by some function of rewards and age
-        # TODO: we want two lists, one with known valid, unapplied transactions, the other with all known transactions (with some limit)
-
         self.chain_change_handlers = []
         self.transaction_change_handlers = []
 
@@ -170,8 +164,8 @@ class ChainBuilder:
 
     def _new_primary_block_chain(self, chain: 'Blockchain'):
         """ Does all the housekeeping that needs to be done when a new longest chain is found. """
-        logging.info("new primary block chain with height %d with current difficulty %d", len(chain.blocks),
-                     chain.head.difficulty)
+        logging.info("new chain:  height %d -  target %10.2e", len(chain.blocks),
+                     chain.total_difficulty)
         self._assert_thread_safety()
         self.primary_block_chain = chain
         todelete = set()
@@ -186,8 +180,6 @@ class ChainBuilder:
 
         self._retry_expired_requests()
         self._clean_block_requests()
-
-        # TODO: restore valid transactions from the old primary block chain
 
         self.protocol.broadcast_primary_block(chain.head)
 
@@ -208,12 +200,14 @@ class ChainBuilder:
             next_chain = chain.try_append(b)
             if next_chain is None:
                 logging.warning("invalid block")
+                for handler in self.chain_change_handlers:
+                    handler() # this is a hot fix! that keeps the miner mining
                 break
-                # TODO we need to figure out why the miner stops after an invalid block!
+
             chain = next_chain
             checkpoints[chain.head.hash] = chain
 
-        if chain.head.height <= self.primary_block_chain.head.height:
+        if chain.total_difficulty < self.primary_block_chain.total_difficulty:
             logging.warning("discarding shorter chain")
             return
 
@@ -251,21 +245,21 @@ class ChainBuilder:
     def new_block_received(self, block: 'Block'):
         """ Event handler that is called by the network layer when a block is received. """
         self._assert_thread_safety()
+        bl_hash = block.hash
 
-        if (block.hash in self.block_cache) or (not block.verify_difficulty()) or (not block.verify_merkle()):
+        if (bl_hash in self.block_cache) or (not block.verify_difficulty()) or (not block.verify_merkle()):
             return
-
-        self.block_cache[block.hash] = block
+        self.block_cache[bl_hash] = block
 
         self._retry_expired_requests()
 
-        if block.hash not in self._block_requests:
-            self._block_requests[block.hash] = BlockRequest()
+        if bl_hash not in self._block_requests:
+            self._block_requests[bl_hash] = BlockRequest()
         else:
             return
 
-        request = self._block_requests[block.hash]
-        del self._block_requests[block.hash]
+        request = self._block_requests[bl_hash]
+        del self._block_requests[bl_hash]
 
         while True:
             for partial_chain in request.partial_chains:
@@ -289,3 +283,4 @@ class ChainBuilder:
             for partial_chain in request.partial_chains:
                 self._build_blockchain(checkpoint, partial_chain[::-1])
         request.checked_retry(self.protocol)
+

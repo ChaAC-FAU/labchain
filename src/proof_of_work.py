@@ -11,7 +11,7 @@ from .block import Block
 from .config import *
 
 
-__all__ = ['GENESIS_DIFFICULTY', 'ProofOfWork']
+__all__ = ['GENESIS_TARGET', 'ProofOfWork']
 
 
 class ProofOfWork:

@@ -3,6 +3,10 @@
 __all__ = ['Blockchain', 'GENESIS_BLOCK']
 import logging
 
+from binascii import hexlify
+
+from collections import namedtuple
+
 from typing import Optional
 
 from datetime import datetime
@@ -13,12 +17,10 @@ from .block import Block
 from .config import *
 from .utils import compute_blockreward_next_block
 
-# If you want to add transactions in the genesis block you can create a Transaction object and include it in the list below (after GENESIS_DIFFICULTY)
-GENESIS_BLOCK = Block("None; {} {}".format(DIFFICULTY_BLOCK_INTERVAL,
-                                           DIFFICULTY_TARGET_TIMEDELTA).encode(),
-                      datetime(2017, 3, 3, 10, 35, 26, 922898), 0, 0,
-                      datetime.utcnow(), GENESIS_DIFFICULTY, [], merkle_tree([]).get_hash(),
-                      0)
+# If you want to add transactions to the genesis block you can create a Transaction object and include it in the list below (after GENESIS_TARGET)
+GENESIS_BLOCK = Block("None; {} {}".format(DIFFICULTY_BLOCK_INTERVAL, DIFFICULTY_TIMEDELTA).encode(),
+                      datetime(2017, 3, 3, 10, 35, 26, 922898), 0, 0, datetime.utcnow(), GENESIS_TARGET,
+                      [], merkle_tree([]).get_hash(), 0)
 
 GENESIS_BLOCK_HASH = GENESIS_BLOCK.hash
 
@@ -45,7 +47,7 @@ class Blockchain:
         assert self.blocks[0].height == 0
         self.block_indices = {GENESIS_BLOCK_HASH: 0}
         self.unspent_coins = {}
-        self.total_difficulty = GENESIS_BLOCK.difficulty
+        self.total_difficulty = 0
 
     def try_append(self, block: 'Block') -> 'Optional[Blockchain]':
         """
@@ -53,7 +55,7 @@ class Blockchain:
         Otherwise, it returns `None`.
         """
 
-        if not block.verify(self.head, self.compute_difficulty_next_block(), self.unspent_coins, self.block_indices,
+        if not block.verify(self.head, self.compute_target_next_block(), self.unspent_coins, self.block_indices,
                             compute_blockreward_next_block(self.head.height)):
             return None
 
@@ -61,11 +63,12 @@ class Blockchain:
 
         for t in block.transactions:
             for inp in t.inputs:
-                try:
-                    del unspent_coins[inp.transaction_hash, inp.output_idx]
-                except KeyError:
-                    logging.info("Input was already spent in this block!")
-                    return None
+                if inp.is_coinbase:
+                    continue
+
+                # the checks for tx using the same inputs are already done in the block.verify method
+                unspent_coins.pop((inp.transaction_hash, inp.output_idx), None)
+
             for i, target in enumerate(t.targets):
                 if target.is_pay_to_pubkey or target.is_pay_to_pubkey_lock:
                     unspent_coins[(t.get_hash(), i)] = target
@@ -75,7 +78,7 @@ class Blockchain:
         chain.blocks = self.blocks + [block]
         chain.block_indices = self.block_indices.copy()
         chain.block_indices[block.hash] = len(self.blocks)
-        chain.total_difficulty = self.total_difficulty + block.difficulty
+        chain.total_difficulty = self.total_difficulty + GENESIS_TARGET - block.target
 
         return chain
 
@@ -95,34 +98,22 @@ class Blockchain:
         """
         return self.blocks[-1]
 
-    def compute_difficulty_next_block(self) -> int:
-        """ Compute the desired difficulty for the block following this chain's `head`. """
-        should_duration = DIFFICULTY_TARGET_TIMEDELTA.total_seconds()
+    def compute_target_next_block(self) -> int:
+        """ Compute the desired target for the block following this chain's `head`. """
+        should_duration = DIFFICULTY_TIMEDELTA.total_seconds()
 
         if (self.head.height % DIFFICULTY_BLOCK_INTERVAL != 0) or (self.head.height == 0):
-            return self.head.difficulty
+            return self.head.target
 
-        last_duration = (
-                self.head.time - self.blocks[self.head.height - DIFFICULTY_BLOCK_INTERVAL].time).total_seconds()
+        past_block = self.blocks[self.head.height - DIFFICULTY_BLOCK_INTERVAL]
+        last_duration = (self.head.time - past_block.time).total_seconds()
         diff_adjustment_factor = last_duration / should_duration
-        prev_difficulty = self.head.difficulty
+        prev_target = self.head.target
+        new_target = prev_target * diff_adjustment_factor
 
-        new_difficulty = prev_difficulty * diff_adjustment_factor
+        # the genesis target was very easy, making it easier means there was a pause
+        # in mining, so we start over with the initial target
+        if new_target > self.blocks[0].target:
+            new_target = self.blocks[0].target
 
-        # the genesis difficulty was very easy, dropping below it means there was a pause
-        # in mining, so let's start with a new difficulty!
-        if new_difficulty > self.blocks[0].difficulty:
-            new_difficulty = self.blocks[0].difficulty
-
-        return int(new_difficulty)
-
-    # def get_key_for_tx(self, tx:Transaction) -> Key:
-    #     inp = tx.inputs[0]
-    #     for block in self.blocks:
-    #         for transaction in block.transactions:
-    #             if transaction.get_hash() == inp.transaction_hash:
-    #                 target = transaction.targets[inp.output_idx]
-    #                 logging.info("REWARD TO")
-    #                 logging.info(target.get_pubkey)
-    #                 return target.get_pubkey
-    #     return None
+        return int(new_target)

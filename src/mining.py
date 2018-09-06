@@ -1,5 +1,4 @@
 """ Functionality for mining new blocks. """
-
 import json
 import os
 import sys

@@ -204,7 +204,7 @@ def get_statistics():
     resp_totalblocks = sess.get(url + 'explorer/statistics/totalblocks')
     resp_totalblocks.raise_for_status()
 
-    resp_difficulty = sess.get(url + 'explorer/statistics/difficulty')
+    resp_difficulty = sess.get(url + 'explorer/statistics/target')
     resp_difficulty.raise_for_status()
 
     resp_hashrate = sess.get(url + 'explorer/statistics/hashrate?length=' + str(QUERY_PARAMETER_AVERAGE_LENGTH))
@@ -214,7 +214,7 @@ def get_statistics():
     resp_tps.raise_for_status()
 
     result = {"blocktime": resp_blocktime.json(), "totalblocks": resp_totalblocks.json(),
-              "difficulty": resp_difficulty.json(), "hashrate": resp_hashrate.json(), "tps": resp_tps.json()}
+              "target": resp_difficulty.json(), "hashrate": resp_hashrate.json(), "tps": resp_tps.json()}
     return result
 
 

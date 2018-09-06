@@ -79,7 +79,10 @@ class Key:
         return cls(unhexlify(obj))
 
     def __eq__(self, other: 'Key'):
-        return self.rsa.e == other.rsa.e and self.rsa.n == other.rsa.n
+        if not other:
+            return False
+        else:
+            return self.rsa.e == other.rsa.e and self.rsa.n == other.rsa.n
 
     def __hash__(self):
         return hash((self.rsa.e, self.rsa.n))

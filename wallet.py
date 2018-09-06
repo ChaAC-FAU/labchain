@@ -10,7 +10,7 @@ __all__ = []
 import argparse
 import sys
 from datetime import datetime
-from binascii import hexlify
+from binascii import hexlify, unhexlify
 from io import IOBase
 from typing import List, Union, Callable, Tuple, Optional
 
@@ -88,6 +88,9 @@ def main():
                                        "stored in the specified file.")
     trans.add_argument("key", nargs="*", type=Key.from_file)
 
+    single_trans = subparsers.add_parser("show-transaction", help="Show transaction for hash")
+    single_trans.add_argument("hash", type=str, help="the hash")
+
     subparsers.add_parser("show-network",
                           help="Prints networking information about the miner.")
 
@@ -103,9 +106,21 @@ def main():
                           type=parse_targets(),
                           help="The private key(s) whose coins should be used for the transfer.")
 
+    data = subparsers.add_parser("burn", help="An unspendable transaction with random data attached")
+    data.add_argument("--private-key", type=private_signing, default=[], action="append", required=False,
+                          help="The private key(s) whose coins should be used for the transfer.")
+    data.add_argument("--change-key", type=Key.from_file, required=False,
+                          help="The private key where any remaining coins are sent to.")
+    data.add_argument("--transaction-fee", type=int, default=1,
+                          help="The transaction fee you want to pay to the miner.")
+
+
     args = parser.parse_args()
 
     rpc = RPCClient(args.miner_port)
+
+    def show_transaction(tx_hash: bytes):
+        print(rpc.get_transaction(tx_hash).to_json_compatible())
 
     def show_transactions(keys: List[Key]):
         for key in keys:
@@ -141,6 +156,7 @@ def main():
 
         timestamp = datetime.utcnow()
         tx = rpc.build_transaction(priv_keys, tx_targets, change_key, args.transaction_fee, timestamp)
+        print(hexlify(tx.get_hash()).decode())
         rpc.send_transaction(tx)
 
     def get_keys(keys: List[Key]) -> List[Key]:
@@ -155,6 +171,8 @@ def main():
 
     if args.command == 'show-transactions':
         show_transactions(get_keys(args.key))
+    elif args.command == 'show-transaction':
+        show_transaction(unhexlify(args.hash))
     elif args.command == "create-address":
         if not args.wallet[1]:
             print("no wallet specified", file=sys.stderr)
@@ -174,6 +192,16 @@ def main():
         targets = [TransactionTarget(TransactionTarget.pay_to_pubkey(k), a) for k, a in
                    zip(args.target[::2], args.target[1::2])]
         transfer(targets, args.change_key, *args.wallet, get_keys(args.private_key))
+
+    elif args.command == 'burn':
+        if not args.change_key and not args.wallet[0]:
+            print("You need to specify either --wallet or --change-key.\n", file=sys.stderr)
+            parser.parse_args(["--help"])
+        import random
+        randomness = random.randint(0, 128)
+        target = TransactionTarget(TransactionTarget.burn(randomness.to_bytes(40, 'big')), 0)
+        transfer([target], args.change_key, *args.wallet, get_keys(args.private_key))
+
     else:
         print("You need to specify what to do.\n", file=sys.stderr)
         parser.parse_args(["--help"])

@@ -115,6 +115,20 @@ def build_transaction():
         "key_indices": used_keys,
     })
 
+@app.route("/transaction", methods=['POST'])
+def get_transaction_for_hash():
+    """
+    Returns the transaction for provided hash.
+    Route: `\"/transaction\"`.
+    HTTP Method: `'POST'`
+    """
+    tx_hash = flask.request.data
+    chain = cb.primary_block_chain
+    for b in chain.blocks:
+        for t in b.transactions:
+            if t.get_hash() == tx_hash:
+                return json.dumps(t.to_json_compatible())
+    return json.dumps("")
 
 @app.route("/transactions", methods=['POST'])
 def get_transactions_for_key():
@@ -514,11 +528,11 @@ def get_total_blocks():
     return json.dumps(total_blocks)
 
 
-@app.route("/explorer/statistics/difficulty", methods=['GET'])
+@app.route("/explorer/statistics/target", methods=['GET'])
 def get_difficulty():
     """
-    Returns the current difficulty.
-    Route: `\"/explorer/statistics/difficulty\"`
+    Returns the current target.
+    Route: `\"/explorer/statistics/target\"`
     HTTP Method: `'GET'`
     """
     chain = cb.primary_block_chain
