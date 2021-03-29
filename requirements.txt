@@ -11,7 +11,7 @@ MarkupSafe==0.23
 pudb==2017.1.1
 py==1.4.32
 pycrypto
-Pygments==2.2.0
+Pygments==2.7.4
 pytest==3.0.6
 pytz==2016.10
 requests
